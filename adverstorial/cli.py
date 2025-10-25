@@ -6,6 +6,10 @@ from .llm_client import create_client
 from .dialogue import AdversarialDialogue
 
 
+# Minimum recommended number of rounds for proper story structure
+MIN_RECOMMENDED_ROUNDS = 4
+
+
 def parse_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
@@ -86,12 +90,12 @@ def main():
         sys.exit(1)
     
     # Warn if rounds is less than recommended minimum
-    if args.rounds < 4:
-        print(f"⚠️  Warning: You specified {args.rounds} rounds. For best results, use at least 4 rounds:")
+    if args.rounds < MIN_RECOMMENDED_ROUNDS:
+        print(f"⚠️  Warning: You specified {args.rounds} rounds. For best results, use at least {MIN_RECOMMENDED_ROUNDS} rounds:")
         print("   - Round 1: Character descriptions")
         print("   - Round 2: Plot development")
         print("   - Round 3: Detail enhancement")
-        print("   - Round 4: Final story")
+        print(f"   - Round {MIN_RECOMMENDED_ROUNDS}: Final story")
         print()
     
     try:
