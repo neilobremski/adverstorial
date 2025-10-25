@@ -85,6 +85,15 @@ def main():
         print("Error: Number of rounds must be at least 1", file=sys.stderr)
         sys.exit(1)
     
+    # Warn if rounds is less than recommended minimum
+    if args.rounds < 4:
+        print(f"⚠️  Warning: You specified {args.rounds} rounds. For best results, use at least 4 rounds:")
+        print("   - Round 1: Character descriptions")
+        print("   - Round 2: Plot development")
+        print("   - Round 3: Detail enhancement")
+        print("   - Round 4: Final story")
+        print()
+    
     try:
         # Create LLM clients
         print(f"🤖 Initializing {args.protagonist_system} protagonist ({args.protagonist_model})...")
