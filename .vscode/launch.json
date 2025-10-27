@@ -12,10 +12,7 @@
       "program": "adverstorial.py",
       "console": "integratedTerminal",
       "args": [
-        "wandering wackadoodles",
-        "--protagonist", "openai.gpt-5",
-        "--antagonist", "openai.gpt-5",
-        "--rounds", "3",
+        "it was a dark but clear night",
       ]
     }
   ]

@@ -15,6 +15,10 @@ PAYI_PROXY_URL = os.environ["PAYI_PROXY_URL"]
 
 MAX_OUTPUT_TOKENS = int(os.environ.get("MAX_OUTPUT_TOKENS", "5000"))
 REASONING_EFFORT = os.environ.get("REASONING_EFFORT", "minimal")
+ROUNDS = int(os.environ.get("ROUNDS", "1"))
+TEMPERATURE = float(os.environ.get("TEMPERATURE", "0.7"))
+DEFAULT_PROTAGONIST = os.environ.get("PROTAGONIST", "openai.gpt-5")
+DEFAULT_ANTAGONIST = os.environ.get("ANTAGONIST", "anthropic.claude-3-opus")
 
 # read instructions from the "## Instructions" section of README.md
 instructions = ""
@@ -83,19 +87,41 @@ def write_story(role: Role, prompt: str, id: str = "") -> str:
       "instructions": instructions,
       "model": role.model,
       "max_output_tokens": MAX_OUTPUT_TOKENS,
-      "reasoning": {
-        "effort": REASONING_EFFORT,
-      }
+      "temperature": TEMPERATURE,
     }
-    # curl $proxy_url -H "Content-Type: application/json" -d "${request_json}"
-    response = requests.post(proxy_url, headers=headers, json=request)
-    json_response = response.json()
-    if response.status_code == 200:
-      return deep_string(json_response, "text")
-    else:
-      raise Exception(f"Error {response.status_code}: {response.text}")
+    if role.model.startswith("gpt-5") or role.model.startswith("o"):
+      request["reasoning"] = {"effort": REASONING_EFFORT}
+  elif role.provider == "anthropic":
+    proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "v1/messages"))
+    headers = {
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+      "x-api-key": f"Bearer {os.environ['ANTHROPIC_API_KEY']} {os.environ['PAYI_API_KEY']}",
+      "xProxy-UseCase-Name": "Story",
+    }
+    if id:
+      headers["xProxy-UseCase-ID"] = id
+    request = {
+      "model": role.model,
+      "max_tokens": MAX_OUTPUT_TOKENS,
+      "temperature": TEMPERATURE,
+      "system": instructions,
+      "messages": [
+        {
+          "role": "user",
+          "content": prompt,
+        }
+      ],
+    }
   else:
     raise NotImplementedError(f"Provider {role.provider} is not implemented yet.")
+
+  response = requests.post(proxy_url, headers=headers, json=request)
+  json_response = response.json()
+  if response.status_code == 200:
+    return deep_string(json_response, "text")
+  else:
+    raise Exception(f"Error {response.status_code}: {response.text}")
 
 def deep_string(obj, key):
   """Recursively search for all string properties with the given key in a nested dict/list structure and concatenate them."""
@@ -117,25 +143,41 @@ if __name__ == "__main__":
   parser.add_argument(
       "--protagonist",
       "-P",
-      required=True,
       type=lambda v: parse_role(v, "protagonist"),
       metavar="PROVIDER.MODEL",
-      help="Protagonist provider/model (e.g., openai.gpt-5)",
+      help=f"Protagonist provider/model (default: ${DEFAULT_PROTAGONIST})",
   )
   parser.add_argument(
       "--antagonist",
       "-A",
-      required=True,
       type=lambda v: parse_role(v, "antagonist"),
       metavar="PROVIDER.MODEL",
-      help="Antagonist provider/model (e.g., anthropic.claude-3-opus)",
+      help=f"Antagonist provider/model (default: ${DEFAULT_ANTAGONIST})",
   )
   parser.add_argument(
       "--rounds",
       "-r",
       type=int,
-      default=1,
-      help="Number of rounds to play (default: 1)",
+      default=ROUNDS,
+      help=f"Number of rounds to play (default: ${ROUNDS})",
+  )
+  parser.add_argument(
+      "--max-output-tokens",
+      type=int,
+      dest="max_output_tokens",
+      help=f"Override maximum output tokens (default: ${MAX_OUTPUT_TOKENS})",
+  )
+  parser.add_argument(
+      "--reasoning-effort",
+      dest="reasoning_effort",
+      help=f"Override reasoning effort level (default: ${REASONING_EFFORT})",
+  )
+  parser.add_argument(
+      "--temperature",
+      type=float,
+      default=TEMPERATURE,
+      dest="temperature",
+      help=f"Override sampling temperature (default: ${TEMPERATURE})",
   )
   parsed = parser.parse_args()
 
@@ -146,4 +188,22 @@ if __name__ == "__main__":
   if parsed.rounds is None or parsed.rounds <= 0:
     parser.error("rounds must be a positive integer")
 
-  game_loop(prompt, parsed.protagonist, parsed.antagonist, parsed.rounds)
+  if parsed.max_output_tokens is not None:
+    if parsed.max_output_tokens <= 0:
+      parser.error("max-output-tokens must be a positive integer")
+    MAX_OUTPUT_TOKENS = parsed.max_output_tokens
+  if parsed.reasoning_effort is not None:
+    REASONING_EFFORT = parsed.reasoning_effort
+  if parsed.temperature is not None:
+    TEMPERATURE = parsed.temperature
+
+  try:
+    protagonist = parsed.protagonist or parse_role(DEFAULT_PROTAGONIST, "protagonist")
+  except argparse.ArgumentTypeError as exc:
+    parser.error(f"invalid default protagonist: {exc}")
+  try:
+    antagonist = parsed.antagonist or parse_role(DEFAULT_ANTAGONIST, "antagonist")
+  except argparse.ArgumentTypeError as exc:
+    parser.error(f"invalid default antagonist: {exc}")
+
+  game_loop(prompt, protagonist, antagonist, parsed.rounds)

@@ -17,20 +17,42 @@ This is a writing game to generate a short story where the writer players attemp
 ### Rules
 Violating any of the following will cause a player to lose their turn and their edits to be discarded.
 
+* Story title must not changed once the first player writes it.
 * Facts must not be removed or materially altered.
 * Names and personalities cannot change once established.
 * Scenes must flow in the same order.
 * Story must always be complete with a beginning, middle, and _conclusion_.
+* Avoid referring to yourself or your writing adversary.
+* Do NOT call out the protagonist or antagonist in the story; it is inferred through context.
 
 ### Tips
 
 * Facts MAY be embellished or downplayed to change their effect on the reader.
-* The protagonist and antagonist may not be traditional anthropomorphic heroes or villains; it depends on the story\! A single character could be struggling with an antagonistic side within themselves or society or some environmental factor.  
+* The protagonist and antagonist may not be traditional anthropomorphic heroes or villains; it depends on the story! A single character could be struggling with an antagonistic side within themselves or society or some environmental factor.  
 * Creating dialogs and direct encounters between the protagonist and antagonist can make for a fun “writing duel”.  
 * Remember you can affect all parts of the story from the theme, the setting, other characters, dress, mood, style, etc. and not just direct attributes of your chosen side.  
 * Keeping to the mood of the story can help build more emotional intensity whether it’s happy, sad, funny, or all of the above. Giving the judge an emotional adventure is more potent than mere tag lines.  
 * Make your side more sympathetic by making them more humanly relatable.  
-* The seed is *not* a plot or a title, it is just inspiration to write the story. Try to adapt it creatively\!
+* The seed is *not* a plot or a title, it is just inspiration to write the story. Try to adapt it creatively!
+* You may add an epilogue but it must not be longer than a single paragraph. It always follows "The End".
+
+### Format
+
+Every turn must output this format:
+
+```
+Title: <title>
+
+<beginning>
+
+<middle>
+
+<conclusion>
+
+The End
+
+[optional epilogue paragraph]
+```
 
 ## Game Start
 
