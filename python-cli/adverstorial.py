@@ -53,7 +53,7 @@ class Story:
   content: str
   lines: List[str]
   def __str__(self):
-    return f"Title: {self.title}\n{self.content}\n\nThe End\n"
+    return f"Title: {self.title}\n\n{self.content}\n\nThe End\n"
 
 def parse_role(value: str, type: str) -> Role:
   provider, sep, model = value.partition(".")
