@@ -18,6 +18,7 @@ This is a writing game to generate a short story where the writer players attemp
 Violating any of the following will cause a player to lose their turn and their edits to be discarded.
 
 * Story title must not changed once the first player writes it.
+* The beginning and ending of the story must stay essentially the same; it is the middle parts that can be expanded upon to add new scenes.
 * Facts must not be removed or materially altered.
 * Names and personalities cannot change once established.
 * Scenes must flow in the same order.
@@ -27,7 +28,7 @@ Violating any of the following will cause a player to lose their turn and their 
 
 ### Tips
 
-* Facts MAY be embellished or downplayed to change their effect on the reader.
+* Facts MAY be embellished or downplayed to change their effect on the reader. This is also true of the beginning and conclusion of the story which must nevertheless remain factually consistent.
 * The protagonist and antagonist may not be traditional anthropomorphic heroes or villains; it depends on the story! A single character could be struggling with an antagonistic side within themselves or society or some environmental factor.  
 * Creating dialogs and direct encounters between the protagonist and antagonist can make for a fun “writing duel”.  
 * Remember you can affect all parts of the story from the theme, the setting, other characters, dress, mood, style, etc. and not just direct attributes of your chosen side.  

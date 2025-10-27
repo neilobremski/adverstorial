@@ -65,8 +65,10 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
     for role in order:
       print("")
       print(f"Round {round_num} {role.type.capitalize()}'s turn:")
-      current_prompt = current_story or f"""You are writing on the side of the {role.type} and
-      you won the coin toss so you go first: {prompt}"""
+      if not current_story:
+        current_prompt = f"You are writing on the side of the {role.type} and you won the coin toss so you go first: {prompt}"
+      else:
+        current_prompt = f"It is round {round_num} and the {role.type}'s turn to continue the story based on the following so far:\n\n{current_story}"
       current_story = write_story(role, current_prompt, id=game_id)
       print(current_story)
 
