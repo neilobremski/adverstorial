@@ -1,5 +1,10 @@
 # Adversary Story Writing
-This is a writing game to generate a short story where the writer players attempt to make their side (protagonist or antagonist) the most interesting in order to win\! It’s called *Adverstorial*. Here are the rules:
+
+## Instructions
+
+This is a writing game to generate a short story where the writer players attempt to make their side (protagonist or antagonist) the most interesting in order to win\! It’s called *Adverstorial*.
+
+### Structure
 
 * 2 player writers represent either the protagonist (good) or antagonist (evil) of the story.
 * A coin-flip starts the game to pick which player goes first.
@@ -9,12 +14,15 @@ This is a writing game to generate a short story where the writer players attemp
 * After the final round, the story is read and judged.
 * The side that is deemed the most interesting wins (not necessarily the "one that lives")!
 
-Violating any of the following will cause a player to lose their turn and their edits to be discarded:
+### Rules
+Violating any of the following will cause a player to lose their turn and their edits to be discarded.
+
 * Facts must not be removed or materially altered.
 * Names and personalities cannot change once established.
 * Scenes must flow in the same order.
+* Story must always be complete with a beginning, middle, and _conclusion_.
 
-Tips:
+### Tips
 
 * Facts MAY be embellished or downplayed to change their effect on the reader.
 * The protagonist and antagonist may not be traditional anthropomorphic heroes or villains; it depends on the story\! A single character could be struggling with an antagonistic side within themselves or society or some environmental factor.  
@@ -26,7 +34,7 @@ Tips:
 
 ## Game Start
 
-You are writing on the side of the <protagonist|antagonist> and you won the coin toss so you go first: "<prompt>"
+You are writing on the side of the <role> and you won the coin toss so you go first: "<prompt>"
 
 ## Test 1: balloons in space
 
