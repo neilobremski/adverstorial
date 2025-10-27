@@ -9,7 +9,7 @@ This is a writing game to generate a short story where the writer players attemp
 * 2 player writers represent either the protagonist (good) or antagonist (evil) of the story.
 * A coin-flip starts the game to pick which player goes first.
 * Turn 1: Player receives seed text for inspiration and writes a complete short story.
-* Turn 2+: Player rewrites the story and expands it by 1 to 3 paragraphs.
+* Turn 2+: Player rewrites, edits and expands the story while preserving its beginning and end.
 * The story at each turn must always be whole: title, comprehensive plot, and conclusion.
 * After the final round, the story is read and judged.
 * The side that is deemed the most interesting wins (not necessarily the "one that lives")!
@@ -17,6 +17,7 @@ This is a writing game to generate a short story where the writer players attemp
 ### Rules
 Violating any of the following will cause a player to lose their turn and their edits to be discarded.
 
+* Keep it within a dozen paragraphs! This is a short story, not a novel.
 * Story title must not changed once the first player writes it.
 * The beginning and ending of the story must stay essentially the same; it is the middle parts that can be expanded upon to add new scenes.
 * Facts must not be removed or materially altered.
@@ -35,7 +36,6 @@ Violating any of the following will cause a player to lose their turn and their 
 * Keeping to the mood of the story can help build more emotional intensity whether it’s happy, sad, funny, or all of the above. Giving the judge an emotional adventure is more potent than mere tag lines.  
 * Make your side more sympathetic by making them more humanly relatable.  
 * The seed is *not* a plot or a title, it is just inspiration to write the story. Try to adapt it creatively!
-* You may add an epilogue but it must not be longer than a single paragraph. It always follows "The End".
 
 ### Format
 
@@ -51,9 +51,9 @@ Title: <title>
 <conclusion>
 
 The End
-
-[optional epilogue paragraph]
 ```
+
+You MUST output The End on its own line without any punctuation.
 
 ## Game Start
 

@@ -2,10 +2,14 @@ import argparse
 from dataclasses import dataclass
 import json
 import os
+import logging
 import random
+import uuid
 import requests
+import re
 import dotenv
 from urllib.parse import urljoin
+from typing import Optional, List
 
 dotenv.load_dotenv()
 
@@ -42,6 +46,15 @@ class Role:
   model: str
   type: str  # either "protagonist" or "antagonist"
 
+
+@dataclass(frozen=True)
+class Story:
+  title: str
+  content: str
+  lines: List[str]
+  def __str__(self):
+    return f"Title: {self.title}\n{self.content}\n\nThe End\n"
+
 def parse_role(value: str, type: str) -> Role:
   provider, sep, model = value.partition(".")
   if not sep or not provider or not model:
@@ -50,31 +63,100 @@ def parse_role(value: str, type: str) -> Role:
   return role
 
 
+def parse_story(raw: str) -> Optional[Story]:
+  """Look for a line starting with 'Title:' and then a line ending with 'The End'. Everything in between is the content."""
+  if not raw:
+    return None
+  lines = raw.strip().splitlines()
+  if not lines:
+    logging.warning("No lines found in story")
+    return None
+
+  # find first line starting with "Title:" (case-insensitive, may have preceding MD code)
+  bi = 0
+  while bi < len(lines) and not re.match(r"^[^\w]*title:", lines[bi], re.IGNORECASE):
+    bi += 1
+  if bi == len(lines):
+    logging.warning("No title found in story")
+    return None
+
+  # find first line after Title that is "The End"
+  # this should match "The End" or "the end" or "**The End**" etc.
+  ei = bi + 1
+  while ei < len(lines) and not re.match(r"^[^\w]*the end[\w]*$", lines[ei], re.IGNORECASE):
+    ei += 1
+  if ei == len(lines):
+    logging.warning("No 'The End' found in story")
+    return None
+
+  # verify that there is at least 1 line of content between Title and The End
+  if ei - bi < 2:
+    logging.warning("No content found in story")
+    return None
+
+  title = lines[bi].strip()[len("Title:"):].strip()
+  content = "\n".join(lines[bi + 1 : ei]).strip()
+  return Story(title=title, content=content, lines=lines)
+
+
 def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
+  global instructions
   order = [protagonist, antagonist]
   random.shuffle(order)
-  current_story = ""
-  # generate a new UUID for this game session
-  game_id = os.urandom(16).hex()
+  story: Optional[Story] = None
+  game_id = uuid.uuid4().hex
 
-  # loop through each round
   for round_num in range(1, rounds + 1):
-    print("")
-    print(f"--- Round {round_num} ---")
-
     for role in order:
       print("")
-      print(f"Round {round_num} {role.type.capitalize()}'s turn:")
-      if not current_story:
-        current_prompt = f"You are writing on the side of the {role.type} and you won the coin toss so you go first: {prompt}"
-      else:
-        current_prompt = f"It is round {round_num} and the {role.type}'s turn to continue the story based on the following so far:\n\n{current_story}"
-      current_story = write_story(role, current_prompt, id=game_id)
-      print(current_story)
+      print(f"### Round {round_num} of {rounds} / Turn {order.index(role) + 1} of 2")
 
-def write_story(role: Role, prompt: str, id: str = "") -> str:
-  # combine PAYI_PROXY_URL with role.provider using proper URL joining
-  
+      other_role = order[1] if role == order[0] else order[0]
+      current = [
+        f"* Coin toss winner: {order[0].type}",
+        f"* Seed prompt: {prompt}",
+        f"* It is round {round_num} of {rounds}.",
+        f"* I am writing on the side of the {other_role.type}.",
+        f"* You are writing on the side of the {role.type}.",
+      ]
+
+      if story:
+        current.append(f"* Story Title: {story.title}")
+      if round_num > 1:
+        current.append("* Previous round data has been truncated for brevity.")
+
+      if not story:
+        request = f"You won the coin toss so you go first: {prompt}"
+      else:
+        request = str(story)
+
+      kwargs = {
+        "role": role,
+        "message": "\n".join(current) + "\n\n" + request,
+        "id": game_id,
+        "instructions": instructions,
+      }
+
+      print(kwargs["message"])
+
+      response = write_story(**kwargs)
+      print(response)
+      new_story = parse_story(response)
+      if not new_story:
+        logging.warning("Failed to parse story output, retrying...")
+        response = write_story(**kwargs)
+        print(response)
+        new_story = parse_story(response)
+      if not new_story:
+        raise ValueError("Failed to parse story output after two attempts")
+      story = new_story
+
+  return story
+    
+
+def write_story(role: Role, message: str, id: str = "", instructions: str = "") -> str:
+  temperature = TEMPERATURE + (random.random() * (TEMPERATURE / 100)) - (random.random() * (TEMPERATURE / 100))
+
   if role.provider == "openai":
     proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "v1/responses"))
     headers = {
@@ -85,11 +167,11 @@ def write_story(role: Role, prompt: str, id: str = "") -> str:
     if id:
       headers["xProxy-UseCase-ID"] = id
     request = {
-      "input": prompt,
+      "input": message,
       "instructions": instructions,
       "model": role.model,
       "max_output_tokens": MAX_OUTPUT_TOKENS,
-      "temperature": TEMPERATURE,
+      "temperature": temperature,
     }
     if role.model.startswith("gpt-5") or role.model.startswith("o"):
       request["reasoning"] = {"effort": REASONING_EFFORT}
@@ -106,12 +188,12 @@ def write_story(role: Role, prompt: str, id: str = "") -> str:
     request = {
       "model": role.model,
       "max_tokens": MAX_OUTPUT_TOKENS,
-      "temperature": TEMPERATURE,
+      "temperature": temperature,
       "system": instructions,
       "messages": [
         {
           "role": "user",
-          "content": prompt,
+          "content": message,
         }
       ],
     }
