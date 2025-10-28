@@ -1,6 +1,8 @@
 # Adverstorial
 _Adversary Story Writing Duel_
 
+![Adverstorial Logo](assets/adverstorial-app-tile.jpg)
+
 ## Instructions
 
 This is a writing game to generate a short story where the writer players attempt to make their side (protagonist or antagonist) the most interesting in order to win\! It’s called *Adverstorial*.
