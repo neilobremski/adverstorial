@@ -54,3 +54,13 @@ python3 "$ADVERSTORIAL_DIR/python-cli/adverstorial.py" "$prompt" \
   --protagonist "$protagonist" \
   --temperature "$temperature" \
   --rounds "$rounds"
+
+# if "ADVERSTORIAL_DIR" is a git repo and on branch "main" then pull latest
+if [ -d "$ADVERSTORIAL_DIR/.git" ]; then
+  cd "$ADVERSTORIAL_DIR" || exit
+  current_branch=$(git rev-parse --abbrev-ref HEAD)
+  if [ "$current_branch" = "main" ]; then
+    echo "On main branch, pulling latest changes"
+    git pull origin main
+  fi
+fi
