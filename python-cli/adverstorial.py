@@ -130,6 +130,29 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
   story: Optional[Story] = None
   game_id = uuid.uuid4().hex
 
+  # ingest a "sentinel" to mark the start of the game
+  # POST /api/v1/ingest Ingest an Event
+  payi("api/v1/ingest", json_body={
+    "category": "adverstorial",
+    "resource": "sentinel",
+    "units": {
+      "text": {
+        "input": 1,
+        "output": 1
+      }
+    },
+    "use_case_properties": {
+      "antagonist": f"{antagonist.provider}.{antagonist.model}",
+      "protagonist": f"{protagonist.provider}.{protagonist.model}",
+      "rounds": str(rounds),
+      "seed_prompt": prompt,
+      "order": f"{order[0].type},{order[1].type}",
+    },
+  }, method="POST", headers={
+    "xProxy-UseCase-Name": "Story",
+    "xProxy-UseCase-ID": game_id,
+  })
+
   for round_num in range(1, rounds + 1):
     for role in order:
       logger.info("")
@@ -168,15 +191,18 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
       response = write_story(**kwargs)
       print(response)
       new_story = parse_story(response)
-      if not new_story:
+      if response != "" and not new_story:
         logger.warning("Failed to parse story output, retrying...")
         response = write_story(**kwargs)
         print(response)
         new_story = parse_story(response)
       if not new_story:
-        add_game_property(game_id, "system.failure", "failed to parse story")
+        add_game_property(game_id, "system.failure", "parse_story")
         raise ValueError("Failed to parse story output after two attempts")
       story = new_story
+
+  if story and story.title:
+    add_game_property(game_id, "story.title", story.title)
 
   return story
     
@@ -236,6 +262,8 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
   logger.info(f"Response status code: {response.status_code}: {response.text}")
 
   if response.status_code != 200:
+    add_game_property(id, "system.failure", f"http_{response.status_code}")
+    add_game_property(id, "system.failure.description", response.text)
     logger.error(f"Error {response.status_code}: {response.text}")
     return ""
 
@@ -273,13 +301,14 @@ def parse_account_name(role: Role, response: requests.Response, json_response: d
   return DEFAULT_ACCOUNT_NAME
 
 
-def payi(uri, json_body=None, method=None):
+def payi(uri, json_body=None, method=None, headers=None):
   """Call Pay-i API with the given URI."""
   url = urljoin(PAYI_API_URL, uri)
-  headers = {
+  headers = dict(headers or {})  # clone headers to prevent mutation
+  headers.update({
     "accept": "application/json",
     "xProxy-api-key": os.environ["PAYI_API_KEY"],
-  }
+  })
   if method is None:
     method = "PUT" if json_body is not None else "GET"
   response = requests.request(method, url, headers=headers, json=json_body)

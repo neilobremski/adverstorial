@@ -46,6 +46,7 @@ python3 "adverstorial.py" "$prompt" \
   --protagonist "$protagonist" \
   --temperature "$temperature" \
   --rounds "$rounds"
+exit_code=$?
 popd || exit
 
 # if "ADVERSTORIAL_DIR" is a git repo and on branch "main" then pull latest
@@ -56,4 +57,11 @@ if [ -d "$ADVERSTORIAL_DIR/.git" ]; then
     echo "On main branch, pulling latest changes"
     git pull origin main
   fi
+fi
+
+if [ $exit_code -ne 0 ]; then
+  echo "adverstorial.py exited with code $exit_code"
+  exit $exit_code
+else
+  echo "adverstorial.py completed successfully"
 fi
