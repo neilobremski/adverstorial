@@ -16,7 +16,12 @@ logger = logging.getLogger(__name__)
 
 # get main directory as one level up from this one
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PAYI_API_URL = os.environ.get("PAYI_API_URL", "")
 PAYI_PROXY_URL = os.environ["PAYI_PROXY_URL"]
+if not PAYI_API_URL:
+  from urllib.parse import urlparse
+  parsed_url = urlparse(PAYI_PROXY_URL)
+  PAYI_API_URL = f"{parsed_url.scheme}://{parsed_url.netloc.replace('developer.', 'api.')}/"
 
 MAX_OUTPUT_TOKENS = int(os.environ.get("MAX_OUTPUT_TOKENS", "5000"))
 REASONING_EFFORT = os.environ.get("REASONING_EFFORT", "minimal")
@@ -224,31 +229,87 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "") 
     return ""
   logger.info(f"Response status code: {response.status_code}: {response.text}")
 
+  if response.status_code != 200:
+    logger.error(f"Error {response.status_code}: {response.text}")
+    return ""
+
   try:
     json_response = response.json()
   except Exception as e:
     logger.error(f"Error decoding JSON response: {response.text} ({e})")
     return ""
 
-  if response.status_code != 200:
-    logger.error(f"Error {response.status_code}: {response.text}")
-    return ""
+  request_id = parse_request_id(role, json_response)
+  if request_id:
+    add_property(request_id, "role", role.type)
 
   return deep_string(json_response, "text")
 
 
-def deep_string(obj, key):
+def payi(uri, json_body=None, method=None):
+  """Call Pay-i API with the given URI."""
+  url = urljoin(PAYI_API_URL, uri)
+  headers = {
+    "accept": "application/json",
+    "xProxy-api-key": os.environ["PAYI_API_KEY"],
+  }
+  if method is None:
+    method = "PUT" if json_body is not None else "GET"
+  response = requests.request(method, url, headers=headers, json=json_body)
+  if response.status_code != 200:
+    logger.error(f"Error {response.status_code}: {response.text}")
+    return None
+  try:
+    return response.json()
+  except Exception as e:
+    logger.error(f"Error decoding JSON response: {response.text} ({e})")
+    return None
+
+
+def parse_request_id(role, json_response):
+  """Parse the request ID from the JSON response."""
+  provider_response_id = deep_string(json_response, "id")
+  # GET /api/v1/requests/provider/{category}/{provider_response_id}/result
+  r = payi(f"api/v1/requests/provider/system.{role.provider}/{provider_response_id}/result")
+  if r is None:
+    return None
+  return deep_string(r, "request_id")
+
+
+def add_property(request_id, key, value):
+  """Add Pay-i Request property based on ID in the response JSON."""
+  # PUT /api/v1/requests/{request_id}/properties
+  payi(f"api/v1/requests/{request_id}/properties", json_body={
+    "properties": {
+      key: value
+    }
+  }, method="PUT")
+
+
+def deep_list(obj, key):
   """Recursively search for all string properties with the given key in a nested dict/list structure and concatenate them."""
-  result = ""
+  result = []
   if isinstance(obj, dict):
     for k, v in obj.items():
       if k == key and isinstance(v, str):
-        result += v
-      result += deep_string(v, key)
+        result.append(v)
+      result.extend(deep_list(v, key))
   elif isinstance(obj, list):
     for item in obj:
-      result += deep_string(item, key)
+      result.extend(deep_list(item, key))
   return result
+
+def deep_string(obj, key, max=1) -> str:
+  """Recursively search for all string properties with the given key in a nested dict/list structure and concatenate them."""
+  a = deep_list(obj, key)
+  keep = []
+  for s in a:
+    if s:
+      keep.append(s)
+      max -= 1
+      if max == 0:
+        break
+  return "".join(keep)
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
