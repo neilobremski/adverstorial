@@ -201,11 +201,20 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "") 
     raise NotImplementedError(f"Provider {role.provider} is not implemented yet.")
 
   response = requests.post(proxy_url, headers=headers, json=request)
-  json_response = response.json()
-  if response.status_code == 200:
-    return deep_string(json_response, "text")
-  else:
-    raise Exception(f"Error {response.status_code}: {response.text}")
+  print(f"Response status code: {response.status_code}: {response.text}")
+
+  try:
+    json_response = response.json()
+  except json.JSONDecodeError:
+    logging.error(f"Error decoding JSON response: {response.text}")
+    return ""
+
+  if response.status_code != 200:
+    logging.error(f"Error {response.status_code}: {response.text}")
+    return ""
+
+  return deep_string(json_response, "text")
+
 
 def deep_string(obj, key):
   """Recursively search for all string properties with the given key in a nested dict/list structure and concatenate them."""
