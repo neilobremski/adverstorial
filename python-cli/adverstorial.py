@@ -39,8 +39,6 @@ with open(os.path.join(BASE_DIR, "README.md"), "r") as f:
         break
       instructions += line
 
-print(instructions)
-
 @dataclass(frozen=True)
 class Role:
   provider: str
@@ -64,6 +62,19 @@ def parse_role(value: str, type: str) -> Role:
   return role
 
 
+def parse_marker_line(line: str, marker: str) -> Optional[str]:
+  """Extract a marked value from a markdown line. Returns None if not found.
+  Examples:
+  parse_marker_line("```Title: My Story```", "Title") -> "My Story"
+  parse_marker_line("`Title: My Story`", "Title") -> "My Story"
+  parse_marker_line("## Title: My Story", "Title") -> "My Story"
+  """
+  pattern = rf"^[^\w]*{re.escape(marker)}[^\w]*(.*?)[^\w]*$"
+  match = re.match(pattern, line, re.IGNORECASE)
+  if match:
+    return match.group(1).strip()
+  return None
+
 def parse_story(raw: str) -> Optional[Story]:
   """Look for a line starting with 'Title:' and then a line ending with 'The End'. Everything in between is the content."""
   if not raw:
@@ -73,30 +84,34 @@ def parse_story(raw: str) -> Optional[Story]:
     logger.warning("No lines found in story")
     return None
 
-  # find first line starting with "Title:" (case-insensitive, may have preceding MD code)
+  # find the line for "Title:"
+  # (case-insensitive, may be wrapped in markdown code characters)
   bi = 0
-  while bi < len(lines) and not re.match(r"^[^\w]*title:", lines[bi], re.IGNORECASE):
+  title = None
+  while bi < len(lines):
+    title = parse_marker_line(lines[bi], "Title")
     bi += 1
-  if bi == len(lines):
+    if title:
+      break
+  if not title:
     logger.warning("No title found in story")
     return None
 
-  # find first line after Title that is "The End"
-  # this should match "The End" or "the end" or "**The End**" etc.
-  ei = bi + 1
-  while ei < len(lines) and not re.match(r"^[^\w]*the end[\w]*$", lines[ei], re.IGNORECASE):
+  # find the line for "The End"
+  # (case-insensitive, may be wrapped in markdown code characters)
+  ei = bi
+  the_end = None
+  while ei < len(lines):
+    the_end = parse_marker_line(lines[ei], "The End")
     ei += 1
-  if ei == len(lines):
+    if the_end is not None:
+      break
+
+  if the_end is None:
     logger.warning("No 'The End' found in story")
     return None
 
-  # verify that there is at least 1 line of content between Title and The End
-  if ei - bi < 2:
-    logger.warning("No content found in story")
-    return None
-
-  title = lines[bi].strip()[len("Title:"):].strip()
-  content = "\n".join(lines[bi + 1 : ei]).strip()
+  content = "\n".join(lines[bi : ei]).strip()
   return Story(title=title, content=content, lines=lines)
 
 
