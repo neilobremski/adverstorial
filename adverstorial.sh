@@ -48,12 +48,13 @@ temperature=$(awk -v min=0.1 -v max=0.8 'BEGIN{srand(); print sprintf("%.1f", mi
 # pick a random number of rounds between 2 and 4
 rounds=$(shuf -i 2-4 -n 1)
 
-# echo "Generated words: $words"
-python3 "$ADVERSTORIAL_DIR/python-cli/adverstorial.py" "$prompt" \
+pushd "$ADVERSTORIAL_DIR/python-cli" || exit
+python3 "adverstorial.py" "$prompt" \
   --antagonist "$antagonist" \
   --protagonist "$protagonist" \
   --temperature "$temperature" \
   --rounds "$rounds"
+popd || exit
 
 # if "ADVERSTORIAL_DIR" is a git repo and on branch "main" then pull latest
 if [ -d "$ADVERSTORIAL_DIR/.git" ]; then
