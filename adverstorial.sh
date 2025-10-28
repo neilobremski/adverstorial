@@ -3,15 +3,14 @@
 # using wordlists stored in the parent directory.
 
 # get current directory of the script
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PARENT_DIR="$(dirname "$SCRIPT_DIR")"
-WORDLISTS_DIR="$PARENT_DIR/wordlists"
+ADVERSTORIAL_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORDLISTS_DIR="$ADVERSTORIAL_DIR/wordlists"
 echo "Wordlists directory: $WORDLISTS_DIR"
 
 # for loop 5 times to generate 5 words
-prompt="$PROMPT"
-if [ -n "$PROMPT" ]; then
-  echo "Using prompt from environment variable: $PROMPT"
+prompt="$1"
+if [ -n "$prompt" ]; then
+  echo "Using prompt from first argument: $prompt"
 else
   echo "Generating prompt from random words"
   for i in {1..5}; do
@@ -36,9 +35,9 @@ if [ -n "$ADVERSARIES" ]; then
   protagonist=${adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
   antagonist=${adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
 else
-  # pick random antagonist and protagonist from $PARENT_DIR/adversaries.txt file
-  protagonist=$(shuf -n 1 "$PARENT_DIR/adversaries.txt")
-  antagonist=$(shuf -n 1 "$PARENT_DIR/adversaries.txt")
+  # pick random antagonist and protagonist from $ADVERSTORIAL_DIR/adversaries.txt file
+  protagonist=$(shuf -n 1 "$ADVERSTORIAL_DIR/adversaries.txt")
+  antagonist=$(shuf -n 1 "$ADVERSTORIAL_DIR/adversaries.txt")
 fi
 echo "Protagonist: $protagonist"
 echo "Antagonist: $antagonist"
@@ -50,11 +49,8 @@ temperature=$(awk -v min=0.1 -v max=0.8 'BEGIN{srand(); print sprintf("%.1f", mi
 rounds=$(shuf -i 2-4 -n 1)
 
 # echo "Generated words: $words"
-python3 "$SCRIPT_DIR/adverstorial.py" "$prompt" \
+python3 "$ADVERSTORIAL_DIR/python-cli/adverstorial.py" "$prompt" \
   --antagonist "$antagonist" \
   --protagonist "$protagonist" \
   --temperature "$temperature" \
   --rounds "$rounds"
-
-# get latest code (after running so that any changes don't affect this run)
-pushd "$PARENT_DIR"; git pull; popd
