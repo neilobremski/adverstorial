@@ -12,6 +12,7 @@ from urllib.parse import urljoin
 from typing import Optional, List
 
 dotenv.load_dotenv()
+logger = logging.getLogger(__name__)
 
 # get main directory as one level up from this one
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -69,7 +70,7 @@ def parse_story(raw: str) -> Optional[Story]:
     return None
   lines = raw.strip().splitlines()
   if not lines:
-    logging.warning("No lines found in story")
+    logger.warning("No lines found in story")
     return None
 
   # find first line starting with "Title:" (case-insensitive, may have preceding MD code)
@@ -77,7 +78,7 @@ def parse_story(raw: str) -> Optional[Story]:
   while bi < len(lines) and not re.match(r"^[^\w]*title:", lines[bi], re.IGNORECASE):
     bi += 1
   if bi == len(lines):
-    logging.warning("No title found in story")
+    logger.warning("No title found in story")
     return None
 
   # find first line after Title that is "The End"
@@ -86,12 +87,12 @@ def parse_story(raw: str) -> Optional[Story]:
   while ei < len(lines) and not re.match(r"^[^\w]*the end[\w]*$", lines[ei], re.IGNORECASE):
     ei += 1
   if ei == len(lines):
-    logging.warning("No 'The End' found in story")
+    logger.warning("No 'The End' found in story")
     return None
 
   # verify that there is at least 1 line of content between Title and The End
   if ei - bi < 2:
-    logging.warning("No content found in story")
+    logger.warning("No content found in story")
     return None
 
   title = lines[bi].strip()[len("Title:"):].strip()
@@ -108,8 +109,8 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
 
   for round_num in range(1, rounds + 1):
     for role in order:
-      print("")
-      print(f"### Round {round_num} of {rounds} / Turn {order.index(role) + 1} of 2")
+      logger.info("")
+      logger.info(f"### Round {round_num} of {rounds} / Turn {order.index(role) + 1} of 2")
 
       other_role = order[1] if role == order[0] else order[0]
       current = [
@@ -143,7 +144,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
       print(response)
       new_story = parse_story(response)
       if not new_story:
-        logging.warning("Failed to parse story output, retrying...")
+        logger.warning("Failed to parse story output, retrying...")
         response = write_story(**kwargs)
         print(response)
         new_story = parse_story(response)
@@ -200,17 +201,21 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "") 
   else:
     raise NotImplementedError(f"Provider {role.provider} is not implemented yet.")
 
-  response = requests.post(proxy_url, headers=headers, json=request)
-  print(f"Response status code: {response.status_code}: {response.text}")
+  try:
+    response = requests.post(proxy_url, headers=headers, json=request)
+  except Exception as e:
+    logger.error(f"Error making request to {proxy_url}: {e}")
+    return ""
+  logger.info(f"Response status code: {response.status_code}: {response.text}")
 
   try:
     json_response = response.json()
-  except json.JSONDecodeError:
-    logging.error(f"Error decoding JSON response: {response.text}")
+  except Exception as e:
+    logger.error(f"Error decoding JSON response: {response.text} ({e})")
     return ""
 
   if response.status_code != 200:
-    logging.error(f"Error {response.status_code}: {response.text}")
+    logger.error(f"Error {response.status_code}: {response.text}")
     return ""
 
   return deep_string(json_response, "text")
