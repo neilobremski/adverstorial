@@ -174,6 +174,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
         print(response)
         new_story = parse_story(response)
       if not new_story:
+        add_game_property(game_id, "system.failure", "failed to parse story")
         raise ValueError("Failed to parse story output after two attempts")
       story = new_story
 
@@ -308,6 +309,18 @@ def add_property(request_id, key, value):
     return
   # PUT /api/v1/requests/{request_id}/properties
   payi(f"api/v1/requests/{request_id}/properties", json_body={
+    "properties": {
+      key: value
+    }
+  }, method="PUT")
+
+
+def add_game_property(game_id, key, value):
+  """Add Pay-i Use Case property based on Game ID."""
+  if not value:  # don't set empty values
+    return
+  # PUT /api/v1/use_cases/instances/{use_case_id}/properties
+  payi(f"api/v1/use_cases/instances/{game_id}/properties", json_body={
     "properties": {
       key: value
     }

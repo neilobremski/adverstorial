@@ -4,8 +4,6 @@
 
 # get current directory of the script
 ADVERSTORIAL_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORDLISTS_DIR="$ADVERSTORIAL_DIR/wordlists"
-echo "Wordlists directory: $WORDLISTS_DIR"
 
 # for loop 5 times to generate 5 words
 prompt="$1"
@@ -13,19 +11,7 @@ if [ -n "$prompt" ]; then
   echo "Using prompt from first argument: $prompt"
 else
   echo "Generating prompt from random words"
-  for i in {1..5}; do
-    # pick a random file from the wordlists directory
-    WORDLIST_FILE=$(find "$WORDLISTS_DIR" -type f | shuf -n 1)
-
-    # pick a random word from the selected file
-    RANDOM_WORD=$(shuf -n 1 "$WORDLIST_FILE")
-
-    if [ -z "$prompt" ]; then
-      prompt="$RANDOM_WORD"
-    else
-      prompt="$prompt $RANDOM_WORD"
-    fi
-  done
+  prompt="$(./seed-prompt.sh)"
 fi
 echo "Prompt: $prompt"
 
