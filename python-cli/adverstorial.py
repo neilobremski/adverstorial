@@ -130,6 +130,20 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
   story: Optional[Story] = None
   game_id = uuid.uuid4().hex
 
+  # make sure the sentinel type exists and otherwise create it
+  if not deep_string(payi("api/v1/categories/adverstorial/resources/sentinel"), 'resource', 1):
+    # POST /api/v1/categories/{category}/resources/{resource} Create a Resource
+    payi(f"api/v1/categories/adverstorial/resources/sentinel", json_body={
+      "max_input_units": 0,
+      "max_output_units": 0,
+      "units": {
+        "text": {
+          "input_price": 0,
+          "output_price": 0,
+        }
+      }
+    }, method="POST")
+
   # ingest a "sentinel" to mark the start of the game
   # POST /api/v1/ingest Ingest an Event
   payi("api/v1/ingest", json_body={
@@ -261,7 +275,7 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
     return ""
   logger.info(f"Response status code: {response.status_code}: {response.text}")
 
-  if response.status_code != 200:
+  if not response.ok:
     add_game_property(id, "system.failure", f"http_{response.status_code}")
     add_game_property(id, "system.failure.description", response.text)
     logger.error(f"Error {response.status_code}: {response.text}")
@@ -312,7 +326,7 @@ def payi(uri, json_body=None, method=None, headers=None):
   if method is None:
     method = "PUT" if json_body is not None else "GET"
   response = requests.request(method, url, headers=headers, json=json_body)
-  if response.status_code != 200:
+  if not response.ok:
     logger.error(f"Error {response.status_code}: {response.text}")
     return None
   try:
