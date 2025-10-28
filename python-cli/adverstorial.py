@@ -27,6 +27,9 @@ MAX_OUTPUT_TOKENS = int(os.environ.get("MAX_OUTPUT_TOKENS", "5000"))
 REASONING_EFFORT = os.environ.get("REASONING_EFFORT", "minimal")
 ROUNDS = int(os.environ.get("ROUNDS", "1"))
 TEMPERATURE = float(os.environ.get("TEMPERATURE", "0.7"))
+
+DEFAULT_ACCOUNT_NAME = os.environ.get("DEFAULT_ACCOUNT_NAME", "")
+DEFAULT_USER_ID = os.environ.get("DEFAULT_USER_ID", "")
 DEFAULT_PROTAGONIST = os.environ.get("PROTAGONIST", "openai.gpt-5")
 DEFAULT_ANTAGONIST = os.environ.get("ANTAGONIST", "anthropic.claude-3-opus")
 
@@ -132,6 +135,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
       logger.info("")
       logger.info(f"### Round {round_num} of {rounds} / Turn {order.index(role) + 1} of 2")
 
+      use_case_step = f"round-{round_num}-turn-{order.index(role) + 1}-write"
       other_role = order[1] if role == order[0] else order[0]
       current = [
         f"* Coin toss winner: {order[0].type}",
@@ -156,6 +160,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
         "message": "\n".join(current) + "\n\n" + request,
         "id": game_id,
         "instructions": instructions,
+        "use_case_step": use_case_step,
       }
 
       print(kwargs["message"])
@@ -175,7 +180,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
   return story
     
 
-def write_story(role: Role, message: str, id: str = "", instructions: str = "") -> str:
+def write_story(role: Role, message: str, id: str = "", instructions: str = "", use_case_step: str = "") -> str:
   temperature = TEMPERATURE + (random.random() * (TEMPERATURE / 100)) - (random.random() * (TEMPERATURE / 100))
 
   if role.provider == "openai":
@@ -242,8 +247,29 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "") 
   request_id = parse_request_id(role, json_response)
   if request_id:
     add_property(request_id, "role", role.type)
+    add_property(request_id, "system.user_id",
+                 parse_user_id(role, response, json_response))
+    add_property(request_id, "system.account_name",
+                 parse_account_name(role, response, json_response))
+    add_property(request_id, "system.use_case_step", use_case_step)
 
   return deep_string(json_response, "text")
+
+
+def parse_user_id(role: Role, response: requests.Response, json_response: dict) -> str:
+  """Parse the user ID from the response or JSON response."""
+  if role.provider == "openai":
+    return deep_string(json_response, "user") or DEFAULT_USER_ID
+  return DEFAULT_USER_ID
+
+
+def parse_account_name(role: Role, response: requests.Response, json_response: dict) -> str:
+  """Parse organization or account name from the response or JSON response."""
+  if role.provider == "openai":
+    return response.headers.get("OpenAI-Organization") or DEFAULT_ACCOUNT_NAME
+  if role.provider == "anthropic":
+    return response.headers.get("Anthropic-Organization-ID") or DEFAULT_ACCOUNT_NAME
+  return DEFAULT_ACCOUNT_NAME
 
 
 def payi(uri, json_body=None, method=None):
@@ -278,6 +304,8 @@ def parse_request_id(role, json_response):
 
 def add_property(request_id, key, value):
   """Add Pay-i Request property based on ID in the response JSON."""
+  if not value:  # don't set empty values
+    return
   # PUT /api/v1/requests/{request_id}/properties
   payi(f"api/v1/requests/{request_id}/properties", json_body={
     "properties": {
