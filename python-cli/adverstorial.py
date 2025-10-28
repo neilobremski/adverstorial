@@ -95,7 +95,7 @@ def parse_story(raw: str) -> Optional[Story]:
   title = None
   while bi < len(lines):
     title = parse_marker_line(lines[bi], "Title")
-    bi += 1
+    bi += 1  # don't include the "Title:" line
     if title:
       break
   if not title:
@@ -108,9 +108,9 @@ def parse_story(raw: str) -> Optional[Story]:
   the_end = None
   while ei < len(lines):
     the_end = parse_marker_line(lines[ei], "The End")
-    ei += 1
     if the_end is not None:
       break
+    ei += 1  # don't include the "The End" line
 
   if the_end is None:
     logger.warning("No 'The End' found in story")
