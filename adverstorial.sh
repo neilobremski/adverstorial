@@ -45,8 +45,14 @@ echo "Antagonist: $antagonist"
 # pick a random temperature between 0.1 and 0.8
 temperature=$(awk -v min=0.1 -v max=0.8 'BEGIN{srand(); print sprintf("%.1f", min+rand()*(max-min))}')
 
-# pick a random number of rounds between 2 and 4
-rounds=$(shuf -i 2-4 -n 1)
+rounds=$ROUNDS
+if [ -n "$ROUNDS" ]; then
+  echo "Using rounds from ROUNDS env var"
+else
+  echo "Picking random number of rounds between 2 and 4"
+  rounds=$(shuf -i 2-4 -n 1)
+fi
+echo "Rounds: $rounds"
 
 pushd "$ADVERSTORIAL_DIR/python-cli" || exit
 python3 "adverstorial.py" "$prompt" \
