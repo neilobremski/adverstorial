@@ -11,7 +11,7 @@ if [ -n "$prompt" ]; then
   echo "Using prompt from first argument: $prompt"
 else
   echo "Generating prompt from random words"
-  prompt="$(./seed-prompt.sh)"
+  prompt="$($ADVERSTORIAL_DIR/seed-prompt.sh)"
 fi
 echo "Prompt: $prompt"
 

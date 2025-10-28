@@ -30,8 +30,8 @@ TEMPERATURE = float(os.environ.get("TEMPERATURE", "0.7"))
 
 DEFAULT_ACCOUNT_NAME = os.environ.get("DEFAULT_ACCOUNT_NAME", "")
 DEFAULT_USER_ID = os.environ.get("DEFAULT_USER_ID", "")
-DEFAULT_PROTAGONIST = os.environ.get("PROTAGONIST")
-DEFAULT_ANTAGONIST = os.environ.get("ANTAGONIST")
+DEFAULT_PROTAGONIST = os.environ.get("PROTAGONIST", "")
+DEFAULT_ANTAGONIST = os.environ.get("ANTAGONIST", "")
 
 # read instructions from the "## Instructions" section of README.md
 instructions = ""
