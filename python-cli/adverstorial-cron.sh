@@ -8,9 +8,6 @@ PARENT_DIR="$(dirname "$SCRIPT_DIR")"
 WORDLISTS_DIR="$PARENT_DIR/wordlists"
 echo "Wordlists directory: $WORDLISTS_DIR"
 
-# get latest code
-pushd "$PARENT_DIR"; git pull; popd
-
 # for loop 5 times to generate 5 words
 words=""
 for i in {1..5}; do
@@ -43,3 +40,6 @@ python3 "$SCRIPT_DIR/adverstorial.py" "$words" \
   --protagonist "$protagonist" \
   --temperature "$temperature" \
   --rounds "$rounds"
+
+# get latest code (after running so that any changes don't affect this run)
+pushd "$PARENT_DIR"; git pull; popd
