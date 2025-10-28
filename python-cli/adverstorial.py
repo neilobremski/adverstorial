@@ -172,10 +172,11 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "") 
       "instructions": instructions,
       "model": role.model,
       "max_output_tokens": MAX_OUTPUT_TOKENS,
-      "temperature": temperature,
     }
     if role.model.startswith("gpt-5") or role.model.startswith("o"):
       request["reasoning"] = {"effort": REASONING_EFFORT}
+    else:
+      request["temperature"] = temperature
   elif role.provider == "anthropic":
     proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "v1/messages"))
     headers = {
