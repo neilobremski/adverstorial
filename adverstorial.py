@@ -56,6 +56,7 @@ with open(os.path.join(ADVERSTORIAL_DIR, "README.md"), "r") as f:
 class Role:
   provider: str
   model: str
+  resource: str  # for Azure OpenAI (reference model)
   type: str  # either "protagonist" or "antagonist"
 
 
@@ -68,10 +69,22 @@ class Story:
     return f"Title: {self.title}\n\n{self.content}\n\nThe End\n"
 
 def parse_role(value: str, type: str) -> Role:
-  provider, sep, model = value.partition(".")
-  if not sep or not provider or not model:
-    raise argparse.ArgumentTypeError("expected PROVIDER.MODEL (e.g., openai.gpt-5)")
-  role = Role(provider=provider, model=model, type=type)
+  known_providers = {"openai", "azure.openai", "anthropic"}
+  model = ""
+  provider = ""
+  for known_provider in known_providers:
+    if value.startswith(f"{known_provider}."):
+      provider = known_provider
+      model = value[len(known_provider) + 1 :]
+      break
+  if not provider or not model:
+    raise argparse.ArgumentTypeError(f"unknown provider in {value}, expected one of: {', '.join(known_providers)}")
+  resource = ""
+  if "/" in model:
+    parts = model.split("/")
+    model = parts[0]
+    resource = parts[1]
+  role = Role(provider=provider, model=model, resource=resource, type=type)
   return role
 
 
@@ -217,7 +230,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
         new_story = parse_story(response)
       if not new_story:
         add_game_property(game_id, "system.failure", "parse_story")
-        raise ValueError("Failed to parse story output after two attempts")
+        raise ValueError("Failed to parse story output")
       story = new_story
 
   if story and story.title:
@@ -229,15 +242,24 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
 def write_story(role: Role, message: str, id: str = "", instructions: str = "", use_case_step: str = "") -> str:
   temperature = TEMPERATURE + (random.random() * (TEMPERATURE / 100)) - (random.random() * (TEMPERATURE / 100))
 
+  # OpenAI
   if role.provider == "openai":
     proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "v1/responses"))
     headers = {
       "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']} {os.environ['PAYI_API_KEY']}",
-      "Content-Type": "application/json",
-      "xProxy-UseCase-Name": "Story",
     }
-    if id:
-      headers["xProxy-UseCase-ID"] = id
+
+  # Azure
+  if role.provider == "azure.openai":
+    proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "openai/v1/responses"))
+    headers = {
+      "api-key": f"{os.environ['AZURE_OPENAI_API_KEY']} {os.environ['PAYI_API_KEY']}",
+      "xProxy-PriceAs-Resource": role.resource,
+      "xProxy-Provider-BaseUri": os.environ["AZURE_OPENAI_BASE_URI"],
+    }
+  
+  # OpenAI and Azure OpenAI share the same request format
+  if role.provider.endswith("openai"):
     request = {
       "input": message,
       "instructions": instructions,
@@ -248,13 +270,13 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
       request["reasoning"] = {"effort": REASONING_EFFORT}
     else:
       request["temperature"] = temperature
-  elif role.provider == "anthropic":
+
+  # Anthropic
+  if role.provider == "anthropic":
     proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "v1/messages"))
     headers = {
       "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
       "x-api-key": f"Bearer {os.environ['ANTHROPIC_API_KEY']} {os.environ['PAYI_API_KEY']}",
-      "xProxy-UseCase-Name": "Story",
     }
     if id:
       headers["xProxy-UseCase-ID"] = id
@@ -270,8 +292,14 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
         }
       ],
     }
-  else:
+
+  if role.provider not in {"openai", "azure.openai", "anthropic"}:
     raise NotImplementedError(f"Provider {role.provider} is not implemented yet.")
+
+  headers["Content-Type"] = "application/json"
+  headers["xProxy-UseCase-Name"] = "Story"
+  if id:
+    headers["xProxy-UseCase-ID"] = id
 
   try:
     response = requests.post(proxy_url, headers=headers, json=request)

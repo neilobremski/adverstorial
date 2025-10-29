@@ -8,11 +8,11 @@
       "name": "Debug-Run Adverstorial",
       "type": "debugpy",
       "request": "launch",
-      "cwd": "${workspaceFolder}/python-cli",
+      "cwd": "${workspaceFolder}",
       "program": "adverstorial.py",
       "console": "integratedTerminal",
       "args": [
-        "it was a dark but clear night",
+        "moonlight on the milk",
       ]
     }
   ]
