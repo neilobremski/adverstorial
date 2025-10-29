@@ -7,11 +7,16 @@ import random
 import uuid
 import requests
 import re
-import dotenv
 from urllib.parse import urljoin
 from typing import Optional, List
 
-dotenv.load_dotenv()
+# if python-dotenv is installed, load .env file
+try:
+  import dotenv
+  dotenv.load_dotenv()
+except ImportError:
+  pass
+
 logger = logging.getLogger(__name__)
 
 # get main directory as one level up from this one
