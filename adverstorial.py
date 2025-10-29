@@ -239,6 +239,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
   if story and story.title:
     add_game_property(game_id, "story.title", story.title)
 
+  print(f"Game Over: {game_id}")
   return story
     
 
