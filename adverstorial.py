@@ -1,4 +1,5 @@
 import argparse
+import cast_str
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
@@ -29,10 +30,15 @@ if not PAYI_API_URL:
   parsed_url = urlparse(PAYI_PROXY_URL)
   PAYI_API_URL = f"{parsed_url.scheme}://{parsed_url.netloc.replace('developer.', 'api.')}/"
 
-MAX_OUTPUT_TOKENS = int(os.environ.get("MAX_OUTPUT_TOKENS", "5000"))
+MAX_OUTPUT_TOKENS = cast_str.to_int(os.environ.get("MAX_OUTPUT_TOKENS", "5000"))
 REASONING_EFFORT = os.environ.get("REASONING_EFFORT", "minimal")
-ROUNDS = int(os.environ.get("ROUNDS", "1"))
-TEMPERATURE = float(os.environ.get("TEMPERATURE", "0.7"))
+ROUNDS = cast_str.to_int(os.environ.get("ROUNDS", "1"))
+TEMPERATURE = cast_str.to_float(os.environ.get("TEMPERATURE", "0.7"))
+PAYI_VERIFY_SSL = True
+if os.environ.get("PAYI_VERIFY_SSL"):
+  PAYI_VERIFY_SSL = cast_str.to_bool(os.environ.get("PAYI_VERIFY_SSL"), True)
+else:
+  PAYI_VERIFY_SSL = False if "localhost" in PAYI_API_URL or "localhost" in PAYI_PROXY_URL else True
 
 BLOB_STORAGE_PATH = os.environ.get("BLOB_STORAGE_PATH", "")
 
@@ -62,6 +68,12 @@ class Role:
   resource: str  # for Azure OpenAI (reference model)
   type: str  # either "protagonist" or "antagonist"
 
+  # make a getter called `category` that processes the provider to return the category
+  @property
+  def category(self) -> str:
+    if self.provider == "azure.openai":
+      return "system.azureopenai"
+    return f"system.{self.provider}"
 
 @dataclass(frozen=True)
 class Story:
@@ -306,12 +318,14 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
   headers["xProxy-UseCase-Name"] = "Story"
   if id:
     headers["xProxy-UseCase-ID"] = id
+
+  # Enable shadowing to Azure Blob Storage if configured
   if BLOB_STORAGE_PATH:
     # use YYYY/MM/DD/id as the blob path
     now = datetime.now(timezone.utc)
     date_path = now.strftime("%Y/%m/%d")
     relpath = f"{date_path}/{id}"
-    headers["X-Shadow"] = f"{BLOB_STORAGE_PATH}/{relpath} {os.environ["BLOB_STORAGE_TOKEN"]}"
+    headers["X-Shadow"] = f"{BLOB_STORAGE_PATH}/{relpath} {os.environ['BLOB_STORAGE_TOKEN']}"
 
   try:
     response = requests.post(proxy_url, headers=headers, json=request, params=params)
@@ -374,7 +388,7 @@ def payi(uri, json_body=None, method=None, headers=None):
     method, url,
     headers=headers,
     json=json_body,
-    verify=False)
+    verify=PAYI_VERIFY_SSL)
   if not response.ok:
     logger.error(f"Error {response.status_code}: {response.text}")
     return None
@@ -389,7 +403,7 @@ def parse_request_id(role, json_response):
   """Parse the request ID from the JSON response."""
   provider_response_id = deep_string(json_response, "id")
   # GET /api/v1/requests/provider/{category}/{provider_response_id}/result
-  r = payi(f"api/v1/requests/provider/system.{role.provider}/{provider_response_id}/result")
+  r = payi(f"api/v1/requests/provider/{role.category}/{provider_response_id}/result")
   if r is None:
     return None
   return deep_string(r, "request_id")

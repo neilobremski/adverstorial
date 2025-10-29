@@ -5,6 +5,15 @@
 # get current directory of the script
 ADVERSTORIAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# check for .env and load it if it exists
+ENV_FILE="${ENV_FILE:-$ADVERSTORIAL_DIR/.env}"
+if [ -f "$ENV_FILE" ]; then
+  echo "Using environment file: $ENV_FILE"
+  set -a # Enable automatic export of variables
+  source "$ENV_FILE"
+  set +a # Disable automatic export of variables
+fi
+
 # for loop 5 times to generate 5 words
 prompt="$1"
 if [ -n "$prompt" ]; then
@@ -15,15 +24,17 @@ else
 fi
 echo "Prompt: $prompt"
 
+protagonist="${PROTAGONIST}"
+antagonist="${ANTAGONIST}"
 if [ -n "$ADVERSARIES" ]; then
   # pick adversaries from ADVERSARIES env var if set (as comma-separated list)
   IFS=',' read -r -a adversaries_array <<< "$ADVERSARIES"
-  protagonist=${adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
-  antagonist=${adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
+  protagonist=${protagonist:-adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
+  antagonist=${antagonist:-adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
 else
   # pick random antagonist and protagonist from $ADVERSTORIAL_DIR/adversaries.txt file
-  protagonist=$(sort -R "$ADVERSTORIAL_DIR/adversaries.txt" | head -n 1)
-  antagonist=$(sort -R "$ADVERSTORIAL_DIR/adversaries.txt" | head -n 1)
+  protagonist=${protagonist:-$(sort -R "$ADVERSTORIAL_DIR/adversaries.txt" | head -n 1)}
+  antagonist=${antagonist:-$(sort -R "$ADVERSTORIAL_DIR/adversaries.txt" | head -n 1)}
 fi
 echo "Protagonist: $protagonist"
 echo "Antagonist: $antagonist"
@@ -40,7 +51,10 @@ else
 fi
 echo "Rounds: $rounds"
 
-export BLOB_STORAGE_TOKEN="$(az account get-access-token --resource https://storage.azure.com/ --query accessToken -o tsv)"
+if [ "$BLOB_STORAGE_TOKEN" = "auto" ]; then
+  echo "Obtaining BLOB_STORAGE_TOKEN using az CLI"
+  export BLOB_STORAGE_TOKEN="$(az account get-access-token --resource https://storage.azure.com/ --query accessToken -o tsv)"
+fi
 
 pushd "$ADVERSTORIAL_DIR" || exit
 python3 "adverstorial.py" "$prompt" \
