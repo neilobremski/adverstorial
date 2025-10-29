@@ -20,7 +20,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # get main directory as one level up from this one
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ADVERSTORIAL_DIR = os.path.dirname(os.path.abspath(__file__))
 PAYI_API_URL = os.environ.get("PAYI_API_URL", "")
 PAYI_PROXY_URL = os.environ["PAYI_PROXY_URL"]
 if not PAYI_API_URL:
@@ -40,7 +40,7 @@ DEFAULT_ANTAGONIST = os.environ.get("ANTAGONIST", "")
 
 # read instructions from the "## Instructions" section of README.md
 instructions = ""
-with open(os.path.join(BASE_DIR, "README.md"), "r") as f:
+with open(os.path.join(ADVERSTORIAL_DIR, "README.md"), "r") as f:
   lines = f.readlines()
   in_instructions = False
   for line in lines:

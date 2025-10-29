@@ -22,8 +22,8 @@ if [ -n "$ADVERSARIES" ]; then
   antagonist=${adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
 else
   # pick random antagonist and protagonist from $ADVERSTORIAL_DIR/adversaries.txt file
-  protagonist=$(shuf -n 1 "$ADVERSTORIAL_DIR/adversaries.txt")
-  antagonist=$(shuf -n 1 "$ADVERSTORIAL_DIR/adversaries.txt")
+  protagonist=$(sort -R "$ADVERSTORIAL_DIR/adversaries.txt" | head -n 1)
+  antagonist=$(sort -R "$ADVERSTORIAL_DIR/adversaries.txt" | head -n 1)
 fi
 echo "Protagonist: $protagonist"
 echo "Antagonist: $antagonist"
@@ -36,11 +36,11 @@ if [ -n "$ROUNDS" ]; then
   echo "Using rounds from ROUNDS env var"
 else
   echo "Picking random number of rounds between 2 and 4"
-  rounds=$(shuf -i 2-4 -n 1)
+  rounds=$(seq 2 4 | sort -R | head -n 1)
 fi
 echo "Rounds: $rounds"
 
-pushd "$ADVERSTORIAL_DIR/python-cli" || exit
+pushd "$ADVERSTORIAL_DIR" || exit
 python3 "adverstorial.py" "$prompt" \
   --antagonist "$antagonist" \
   --protagonist "$protagonist" \
