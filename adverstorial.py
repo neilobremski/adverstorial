@@ -1,5 +1,6 @@
 import argparse
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import json
 import os
 import logging
@@ -32,6 +33,8 @@ MAX_OUTPUT_TOKENS = int(os.environ.get("MAX_OUTPUT_TOKENS", "5000"))
 REASONING_EFFORT = os.environ.get("REASONING_EFFORT", "minimal")
 ROUNDS = int(os.environ.get("ROUNDS", "1"))
 TEMPERATURE = float(os.environ.get("TEMPERATURE", "0.7"))
+
+BLOB_STORAGE_PATH = os.environ.get("BLOB_STORAGE_PATH", "")
 
 DEFAULT_ACCOUNT_NAME = os.environ.get("DEFAULT_ACCOUNT_NAME", "")
 DEFAULT_USER_ID = os.environ.get("DEFAULT_USER_ID", "")
@@ -240,6 +243,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
     
 
 def write_story(role: Role, message: str, id: str = "", instructions: str = "", use_case_step: str = "") -> str:
+  params = {}
   temperature = TEMPERATURE + (random.random() * (TEMPERATURE / 100)) - (random.random() * (TEMPERATURE / 100))
 
   # OpenAI
@@ -251,6 +255,7 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
 
   # Azure
   if role.provider == "azure.openai":
+    params["ingest"] = True
     proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "openai/v1/responses"))
     headers = {
       "api-key": f"{os.environ['AZURE_OPENAI_API_KEY']} {os.environ['PAYI_API_KEY']}",
@@ -300,9 +305,15 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
   headers["xProxy-UseCase-Name"] = "Story"
   if id:
     headers["xProxy-UseCase-ID"] = id
+  if BLOB_STORAGE_PATH:
+    # use YYYY/MM/DD/id as the blob path
+    now = datetime.now(timezone.utc)
+    date_path = now.strftime("%Y/%m/%d")
+    relpath = f"{date_path}/{id}"
+    headers["X-Shadow"] = f"{BLOB_STORAGE_PATH}/{relpath} {os.environ["BLOB_STORAGE_TOKEN"]}"
 
   try:
-    response = requests.post(proxy_url, headers=headers, json=request)
+    response = requests.post(proxy_url, headers=headers, json=request, params=params)
   except Exception as e:
     logger.error(f"Error making request to {proxy_url}: {e}")
     return ""
@@ -358,7 +369,11 @@ def payi(uri, json_body=None, method=None, headers=None):
   })
   if method is None:
     method = "PUT" if json_body is not None else "GET"
-  response = requests.request(method, url, headers=headers, json=json_body)
+  response = requests.request(
+    method, url,
+    headers=headers,
+    json=json_body,
+    verify=False)
   if not response.ok:
     logger.error(f"Error {response.status_code}: {response.text}")
     return None

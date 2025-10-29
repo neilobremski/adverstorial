@@ -40,6 +40,8 @@ else
 fi
 echo "Rounds: $rounds"
 
+export BLOB_STORAGE_TOKEN="$(az account get-access-token --resource https://storage.azure.com/ --query accessToken -o tsv)"
+
 pushd "$ADVERSTORIAL_DIR" || exit
 python3 "adverstorial.py" "$prompt" \
   --antagonist "$antagonist" \
