@@ -235,15 +235,14 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
       print(kwargs["message"])
 
       new_story = write_story(**kwargs)
-      print(new_story)
-      if new_story != "" and not new_story:
+      if not new_story:
         logger.warning("Failed to parse story, retrying...")
         new_story = write_story(**kwargs)
-        print(new_story)
       if not new_story:
         add_game_property(game_id, "system.failure", "parse_story")
         raise Exception("Failed to parse story")
       story = new_story
+      print(new_story)
 
   if story and story.title:
     add_game_property(game_id, "story.title", story.title)
