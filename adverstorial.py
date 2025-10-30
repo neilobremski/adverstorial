@@ -80,6 +80,8 @@ class Story:
   title: str
   content: str
   lines: List[str]
+  request_id: Optional[str] = None
+
   def __str__(self):
     return f"Title: {self.title}\n\n{self.content}\n\nThe End\n"
 
@@ -116,14 +118,13 @@ def parse_marker_line(line: str, marker: str) -> Optional[str]:
     return match.group(1).strip()
   return None
 
-def parse_story(raw: str) -> Optional[Story]:
+def parse_story(raw: str, request_id: Optional[str] = None) -> Optional[Story]:
   """Look for a line starting with 'Title:' and then a line ending with 'The End'. Everything in between is the content."""
   if not raw:
-    return None
+    raise ValueError("Empty story content")
   lines = raw.strip().splitlines()
   if not lines:
-    logger.warning("No lines found in story")
-    return None
+    raise ValueError("No lines found in story")
 
   # find the line for "Title:"
   # (case-insensitive, may be wrapped in markdown code characters)
@@ -135,8 +136,7 @@ def parse_story(raw: str) -> Optional[Story]:
     if title:
       break
   if not title:
-    logger.warning("No title found in story")
-    return None
+    raise ValueError("Missing 'Title:'")
 
   # find the line for "The End"
   # (case-insensitive, may be wrapped in markdown code characters)
@@ -149,11 +149,10 @@ def parse_story(raw: str) -> Optional[Story]:
     ei += 1  # don't include the "The End" line
 
   if the_end is None:
-    logger.warning("No 'The End' found in story")
-    return None
+    raise ValueError("Missing 'The End'")
 
   content = "\n".join(lines[bi : ei]).strip()
-  return Story(title=title, content=content, lines=lines)
+  return Story(title=title, content=content, lines=lines, request_id=request_id)
 
 
 def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
@@ -210,7 +209,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
       current = [
         f"* Coin toss winner: {order[0].type}",
         f"* Seed prompt: {prompt}",
-        f"* It is round {round_num} of {rounds}.",
+        f"* It is round {round_num}, turn {order.index(role) + 1} of 2.",
         f"* I am writing on the side of the {other_role.type}.",
         f"* You are writing on the side of the {role.type}.",
       ]
@@ -235,14 +234,12 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
 
       print(kwargs["message"])
 
-      response = write_story(**kwargs)
-      print(response)
-      new_story = parse_story(response)
-      if response != "" and not new_story:
+      new_story = write_story(**kwargs)
+      print(new_story)
+      if new_story != "" and not new_story:
         logger.warning("Failed to parse story output, retrying...")
-        response = write_story(**kwargs)
-        print(response)
-        new_story = parse_story(response)
+        new_story = write_story(**kwargs)
+        print(new_story)
       if not new_story:
         add_game_property(game_id, "system.failure", "parse_story")
         raise ValueError("Failed to parse story output")
@@ -255,7 +252,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
   return story
     
 
-def write_story(role: Role, message: str, id: str = "", instructions: str = "", use_case_step: str = "") -> str:
+def write_story(role: Role, message: str, id: str = "", instructions: str = "", use_case_step: str = "") -> Story | None:
   params = {}
   temperature = TEMPERATURE + (random.random() * (TEMPERATURE / 100)) - (random.random() * (TEMPERATURE / 100))
 
@@ -331,20 +328,20 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
     response = requests.post(proxy_url, headers=headers, json=request, params=params)
   except Exception as e:
     logger.error(f"Error making request to {proxy_url}: {e}")
-    return ""
+    return None
   logger.info(f"Response status code: {response.status_code}: {response.text}")
 
   if not response.ok:
     add_game_property(id, "system.failure", f"http_{response.status_code}")
     add_game_property(id, "system.failure.description", response.text)
     logger.error(f"Error {response.status_code}: {response.text}")
-    return ""
+    return None
 
   try:
     json_response = response.json()
   except Exception as e:
     logger.error(f"Error decoding JSON response: {response.text} ({e})")
-    return ""
+    return None
 
   request_id = parse_request_id(role, json_response)
   if request_id:
@@ -355,7 +352,13 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
                  parse_account_name(role, response, json_response))
     add_property(request_id, "system.use_case_step", use_case_step)
 
-  return deep_string(json_response, "text")
+  text = deep_string(json_response, "text")
+  try:
+    story = parse_story(text, request_id=request_id)
+  except Exception as e:
+    add_property(request_id, "system.failure", "parse_story")
+    add_property(request_id, "system.failure.description", str(e))
+  return story
 
 
 def parse_user_id(role: Role, response: requests.Response, json_response: dict) -> str:

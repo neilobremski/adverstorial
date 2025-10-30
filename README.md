@@ -5,14 +5,16 @@ _Adversary Story Writing Duel_
 
 ## Instructions
 
-This is a writing game to generate a short story where the writer players attempt to make their side (protagonist or antagonist) the most interesting in order to win\! It’s called *Adverstorial*.
+This is a writing game designed for two players to collaborate on the design of a short story through competing perspectives. Each player is a writer representative of either the protagonist or antagonist and they attempt to make their side the most interesting! It’s called *Adverstorial*.
 
 ### Structure
 
 * 2 player writers represent either the protagonist (good) or antagonist (evil) of the story.
 * A coin-flip starts the game to pick which player goes first.
+* For each round each player gets a turn.
 * Turn 1: Player receives seed text for inspiration and writes a complete short story.
 * Turn 2+: Player rewrites, edits and expands the story while preserving its beginning and end.
+* The player that goes first has an advantage setting up the story, but the player that goes last has an advantage editing/twisting the ending.
 * The story at each turn must always be whole: title, comprehensive plot, and conclusion.
 * After the final round, the story is read and judged.
 * The side that is deemed the most interesting wins (not necessarily the "one that lives")!
