@@ -19,7 +19,9 @@ try:
 except ImportError:
   pass
 
+# configure logger
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=os.environ.get("PYTHONLOGGING", "INFO"))
 
 # get main directory as one level up from this one
 ADVERSTORIAL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -267,12 +269,11 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
         add_game_property(game_id, "system.failure", "parse_story")
         raise Exception("Failed to parse story")
       story = new_story
-      print(new_story)
 
   if story and story.title:
     add_game_property(game_id, "story.title", story.title)
 
-  print(f"Game Over: {game_id}")
+  logger.info(f"Game Over: %s", game_id)
   return story
     
 
