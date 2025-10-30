@@ -42,10 +42,18 @@ else:
 
 BLOB_STORAGE_PATH = os.environ.get("BLOB_STORAGE_PATH", "")
 
+raw_adversaries = os.environ.get("ADVERSARIES", "")
+adversary_choices = [value.strip() for value in raw_adversaries.split(",") if value.strip()]
 DEFAULT_ACCOUNT_NAME = os.environ.get("DEFAULT_ACCOUNT_NAME", "")
 DEFAULT_USER_ID = os.environ.get("DEFAULT_USER_ID", "")
 DEFAULT_PROTAGONIST = os.environ.get("PROTAGONIST", "")
 DEFAULT_ANTAGONIST = os.environ.get("ANTAGONIST", "")
+if not DEFAULT_PROTAGONIST and adversary_choices:
+  DEFAULT_PROTAGONIST = adversary_choices[0]
+if not DEFAULT_ANTAGONIST and len(adversary_choices) > 1:
+  DEFAULT_ANTAGONIST = adversary_choices[1]
+elif not DEFAULT_ANTAGONIST and adversary_choices:
+  DEFAULT_ANTAGONIST = adversary_choices[0]
 
 # read instructions from the "## Instructions" section of README.md
 instructions = ""
