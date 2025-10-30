@@ -84,6 +84,11 @@ class Role:
   resource: str  # for Azure OpenAI (reference model)
   type: str  # either "protagonist" or "antagonist"
 
+  def __str__(self) -> str:
+    if self.resource:
+      return f"{self.type} ({self.provider}.{self.model}/{self.resource})"
+    return f"{self.type} ({self.provider}.{self.model})"
+
   # make a getter called `category` that processes the provider to return the category
   @property
   def category(self) -> str:
@@ -189,7 +194,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
           "input_price": 0,
           "output_price": 0,
         }
-      }
+      },
     }, method="POST")
 
   # ingest a "sentinel" to mark the start of the game
@@ -210,6 +215,11 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
       "seed_prompt": prompt,
       "order": f"{order[0].type},{order[1].type}",
     },
+    "request_properties": {
+      "system.account_name": DEFAULT_ACCOUNT_NAME,
+      "system.use_case_step": "game-start",
+      "system.user_id": DEFAULT_USER_ID,
+    }
   }, method="POST", headers={
     "xProxy-UseCase-Name": "Story",
     "xProxy-UseCase-ID": game_id,
@@ -248,8 +258,7 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
         "use_case_step": use_case_step,
       }
 
-      print(kwargs["message"])
-
+      logger.info(f"Request to {role}:\n{kwargs['message']}")
       new_story = write_story(**kwargs)
       if not new_story:
         logger.warning("Failed to parse story, retrying...")
@@ -367,6 +376,9 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
     add_property(request_id, "system.use_case_step", use_case_step)
 
   text = deep_string(json_response, "text")
+  logger.info(f"// Begin {role} response:")
+  logger.info(text)
+  logger.info(f"// End of {role} response")
   try:
     return parse_story(text, request_id=request_id)
   except Exception as e:
