@@ -15,7 +15,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 # for loop 5 times to generate 5 words
-prompt="$1"
+prompt="${1:-$PROMPT}"
 if [ -n "$prompt" ]; then
   echo "Using prompt from first argument: $prompt"
 else
