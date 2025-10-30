@@ -237,12 +237,12 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
       new_story = write_story(**kwargs)
       print(new_story)
       if new_story != "" and not new_story:
-        logger.warning("Failed to parse story output, retrying...")
+        logger.warning("Failed to parse story, retrying...")
         new_story = write_story(**kwargs)
         print(new_story)
       if not new_story:
         add_game_property(game_id, "system.failure", "parse_story")
-        raise ValueError("Failed to parse story output")
+        raise Exception("Failed to parse story")
       story = new_story
 
   if story and story.title:
@@ -354,12 +354,11 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
 
   text = deep_string(json_response, "text")
   try:
-    story = parse_story(text, request_id=request_id)
+    return parse_story(text, request_id=request_id)
   except Exception as e:
     add_property(request_id, "system.failure", "parse_story")
     add_property(request_id, "system.failure.description", str(e))
-  return story
-
+  return None
 
 def parse_user_id(role: Role, response: requests.Response, json_response: dict) -> str:
   """Parse the user ID from the response or JSON response."""
