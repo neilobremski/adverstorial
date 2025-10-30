@@ -280,7 +280,6 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
 
   # Azure
   if role.provider == "azure.openai":
-    params["ingest"] = True
     proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "openai/v1/responses"))
     headers = {
       "api-key": f"{os.environ['AZURE_OPENAI_API_KEY']} {os.environ['PAYI_API_KEY']}",
