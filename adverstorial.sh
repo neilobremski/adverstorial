@@ -28,9 +28,12 @@ protagonist="${PROTAGONIST}"
 antagonist="${ANTAGONIST}"
 if [ -n "$ADVERSARIES" ]; then
   # pick adversaries from ADVERSARIES env var if set (as comma-separated list)
+  echo "Picking adversaries from \$ADVERSARIES env var: $ADVERSARIES"
   IFS=',' read -r -a adversaries_array <<< "$ADVERSARIES"
-  protagonist=${protagonist:-adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
-  antagonist=${antagonist:-adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
+  random_protagonist=${adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
+  protagonist=${protagonist:-$random_protagonist}
+  random_antagonist=${adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
+  antagonist=${antagonist:-$random_antagonist}
 else
   # pick random antagonist and protagonist from $ADVERSTORIAL_DIR/adversaries.txt file
   protagonist=${protagonist:-$(sort -R "$ADVERSTORIAL_DIR/adversaries.txt" | head -n 1)}
