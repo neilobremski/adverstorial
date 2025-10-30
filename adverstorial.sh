@@ -24,22 +24,61 @@ else
 fi
 echo "Prompt: $prompt"
 
+build_list_from_env() {
+  local env_name="$1"
+  local array_name="$2"
+  local raw_value="${!env_name}"
+  local -a items=()
+  if [ -n "$raw_value" ]; then
+    IFS=',' read -r -a items <<< "$raw_value"
+  fi
+  local filtered=()
+  for entry in "${items[@]}"; do
+    local trimmed="${entry#"${entry%%[![:space:]]*}"}"
+    trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"
+    if [ -n "$trimmed" ]; then
+      filtered+=("$trimmed")
+    fi
+  done
+  eval "$array_name=(\"\${filtered[@]}\")"
+}
+
 protagonist="${PROTAGONIST}"
 antagonist="${ANTAGONIST}"
-if [ -z "$ADVERSARIES" ]; then
-  echo "ADVERSARIES env var must be set to a comma-separated list of provider.model values"
-  exit 1
+build_list_from_env "PROTAGONISTS" protagonists_array
+build_list_from_env "ANTAGONISTS" antagonists_array
+build_list_from_env "ADVERSARIES" adversaries_array
+
+if [ -z "$protagonist" ]; then
+  if [ "${#protagonists_array[@]}" -gt 0 ]; then
+    random_protagonist=${protagonists_array[$RANDOM % ${#protagonists_array[@]}]}
+    protagonist=$random_protagonist
+    echo "Random protagonist selected from \$PROTAGONISTS: $protagonist"
+  elif [ "${#adversaries_array[@]}" -gt 0 ]; then
+    random_protagonist=${adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
+    protagonist=$random_protagonist
+    echo "Random protagonist selected from \$ADVERSARIES: $protagonist"
+  else
+    echo "No protagonist sources configured; set PROTAGONIST, PROTAGONISTS, or ADVERSARIES env vars"
+    exit 1
+  fi
 fi
-echo "Picking adversaries from \$ADVERSARIES env var: $ADVERSARIES"
-IFS=',' read -r -a adversaries_array <<< "$ADVERSARIES"
-if [ "${#adversaries_array[@]}" -eq 0 ]; then
-  echo "No adversaries found in ADVERSARIES env var"
-  exit 1
+
+if [ -z "$antagonist" ]; then
+  if [ "${#antagonists_array[@]}" -gt 0 ]; then
+    random_antagonist=${antagonists_array[$RANDOM % ${#antagonists_array[@]}]}
+    antagonist=$random_antagonist
+    echo "Random antagonist selected from \$ANTAGONISTS: $antagonist"
+  elif [ "${#adversaries_array[@]}" -gt 0 ]; then
+    random_antagonist=${adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
+    antagonist=$random_antagonist
+    echo "Random antagonist selected from \$ADVERSARIES: $antagonist"
+  else
+    echo "No antagonist sources configured; set ANTAGONIST, ANTAGONISTS, or ADVERSARIES env vars"
+    exit 1
+  fi
 fi
-random_protagonist=${adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
-protagonist=${protagonist:-$random_protagonist}
-random_antagonist=${adversaries_array[$RANDOM % ${#adversaries_array[@]}]}
-antagonist=${antagonist:-$random_antagonist}
+
 echo "Protagonist: $protagonist"
 echo "Antagonist: $antagonist"
 
