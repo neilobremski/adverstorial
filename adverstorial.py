@@ -7,10 +7,11 @@ import os
 import logging
 import random
 import uuid
-import requests
+import ssl
 import re
-from urllib.parse import urljoin
-from typing import Optional, List
+from urllib.parse import urljoin, urlencode, urlparse, parse_qsl, urlunparse
+from typing import Optional, List, Any
+from urllib import request as urllib_request, error as urllib_error
 
 # if python-dotenv is installed, load .env file
 try:
@@ -28,7 +29,6 @@ ADVERSTORIAL_DIR = os.path.dirname(os.path.abspath(__file__))
 PAYI_API_URL = os.environ.get("PAYI_API_URL", "")
 PAYI_PROXY_URL = os.environ["PAYI_PROXY_URL"]
 if not PAYI_API_URL:
-  from urllib.parse import urlparse
   parsed_url = urlparse(PAYI_PROXY_URL)
   PAYI_API_URL = f"{parsed_url.scheme}://{parsed_url.netloc.replace('developer.', 'api.')}/"
 
@@ -78,6 +78,97 @@ with open(os.path.join(ADVERSTORIAL_DIR, "README.md"), "r") as f:
       if line.startswith("# ") or line.startswith("## "):
         break
       instructions += line
+
+
+class CaseInsensitiveHeaders(dict):
+  """Dictionary with case-insensitive keys for HTTP headers."""
+  def __init__(self, headers=None):
+    super().__init__()
+    if headers:
+      items = headers.items() if hasattr(headers, "items") else []
+      for key, value in items:
+        if isinstance(value, (list, tuple)):
+          value = ", ".join(str(v) for v in value)
+        super().__setitem__(key.lower(), value)
+
+  def __setitem__(self, key, value):
+    super().__setitem__(key.lower(), value)
+
+  def get(self, key, default=None):
+    return super().get(key.lower(), default)
+
+
+class SimpleHTTPResponse:
+  """Lightweight response wrapper exposing the subset of response APIs we rely on."""
+  def __init__(self, status: int, headers, body: bytes):
+    self.status = status
+    self.status_code = status
+    self.headers = CaseInsensitiveHeaders(headers)
+    self._body = body or b""
+    self._text_cache: Optional[str] = None
+
+  @property
+  def ok(self) -> bool:
+    return 200 <= self.status_code < 300
+
+  @property
+  def text(self) -> str:
+    if self._text_cache is None:
+      charset = None
+      content_type = self.headers.get("content-type")
+      if content_type:
+        match = re.search(r"charset=([^\s;]+)", content_type, re.IGNORECASE)
+        if match:
+          charset = match.group(1).strip('"').strip("'")
+      if not charset:
+        charset = "utf-8"
+      try:
+        self._text_cache = self._body.decode(charset, errors="replace")
+      except LookupError:
+        self._text_cache = self._body.decode("utf-8", errors="replace")
+    return self._text_cache
+
+  def json(self) -> Any:
+    return json.loads(self.text or "")
+
+
+def http_request(method: str, url: str, *, headers=None, json_body=None, data: Optional[bytes] = None, params=None) -> SimpleHTTPResponse:
+  """Perform an HTTP request using urllib and return a SimpleHTTPResponse."""
+  headers = dict(headers or {})
+  if params:
+    parsed = urlparse(url)
+    existing = parse_qsl(parsed.query, keep_blank_values=True)
+    if hasattr(params, "items"):
+      iterable = params.items()
+    else:
+      iterable = params
+    for key, value in iterable:
+      if value is None:
+        continue
+      existing.append((key, str(value)))
+    encoded_query = urlencode(existing)
+    parsed = parsed._replace(query=encoded_query)
+    url = urlunparse(parsed)
+
+  if json_body is not None:
+    data = json.dumps(json_body).encode("utf-8")
+    headers.setdefault("Content-Type", "application/json")
+
+  if data is not None and not isinstance(data, (bytes, bytearray)):
+    data = str(data).encode("utf-8")
+
+  req = urllib_request.Request(url, data=data, headers=headers, method=method.upper())
+  context = None
+  if url.lower().startswith("https") and not PAYI_VERIFY_SSL:
+    context = ssl._create_unverified_context()
+
+  try:
+    with urllib_request.urlopen(req, context=context) as resp:
+      body = resp.read()
+      return SimpleHTTPResponse(resp.status, resp.headers, body)
+  except urllib_error.HTTPError as exc:
+    body = exc.read() if hasattr(exc, "read") else b""
+    return SimpleHTTPResponse(exc.code, exc.headers, body)
 
 @dataclass(frozen=True)
 class Role:
@@ -349,7 +440,7 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
     headers["X-Shadow"] = f"{BLOB_STORAGE_PATH}/{relpath} {os.environ['BLOB_STORAGE_TOKEN']}"
 
   try:
-    response = requests.post(proxy_url, headers=headers, json=request, params=params)
+    response = http_request("POST", proxy_url, headers=headers, json_body=request, params=params)
   except Exception as e:
     logger.error(f"Error making request to {proxy_url}: {e}")
     return None
@@ -387,14 +478,14 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
     add_property(request_id, "system.failure.description", str(e))
   return None
 
-def parse_user_id(role: Role, response: requests.Response, json_response: dict) -> str:
+def parse_user_id(role: Role, response: SimpleHTTPResponse, json_response: dict) -> str:
   """Parse the user ID from the response or JSON response."""
   if role.provider == "openai":
     return deep_string(json_response, "user") or DEFAULT_USER_ID
   return DEFAULT_USER_ID
 
 
-def parse_account_name(role: Role, response: requests.Response, json_response: dict) -> str:
+def parse_account_name(role: Role, response: SimpleHTTPResponse, json_response: dict) -> str:
   """Parse organization or account name from the response or JSON response."""
   if role.provider == "openai":
     return response.headers.get("OpenAI-Organization") or DEFAULT_ACCOUNT_NAME
@@ -413,11 +504,7 @@ def payi(uri, json_body=None, method=None, headers=None):
   })
   if method is None:
     method = "PUT" if json_body is not None else "GET"
-  response = requests.request(
-    method, url,
-    headers=headers,
-    json=json_body,
-    verify=PAYI_VERIFY_SSL)
+  response = http_request(method, url, headers=headers, json_body=json_body)
   if not response.ok:
     logger.error(f"Error {response.status_code}: {response.text}")
     return None
