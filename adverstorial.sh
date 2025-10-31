@@ -142,8 +142,5 @@ if [ -n "$pull" ] && [ -d "$ADVERSTORIAL_DIR/.git" ]; then
 fi
 
 if [ $exit_code -ne 0 ]; then
-  echo "adverstorial.py exited with code $exit_code"
   exit $exit_code
-else
-  echo "adverstorial.py completed successfully"
 fi
