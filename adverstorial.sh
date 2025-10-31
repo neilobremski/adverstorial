@@ -14,8 +14,31 @@ if [ -f "$ENV_FILE" ]; then
   set +a # Disable automatic export of variables
 fi
 
-# for loop 5 times to generate 5 words
-prompt="${1:-$PROMPT}"
+# parse all arguments started with -- and set those as variables
+# if it includes = then set that as the value, otherwise set to true
+prompt=""
+for arg in "$@"; do
+  if [[ "$arg" == --* ]]; then
+    key="${arg%%=*}"
+    key="${key#--}"
+    if [[ "$arg" == *=* ]]; then
+      value="${arg#*=}"
+    else
+      value=true
+    fi
+    export "$key"="$value"
+    echo "Set variable from argument: $key=$value"
+  elif [ -z "$prompt" ]; then
+    prompt="$arg"
+  else
+    prompt="$prompt $arg"
+  fi
+done
+if [ -z "$prompt" ]; then
+  prompt="$PROMPT"
+fi
+
+# use specified prompt or generate one
 if [ -n "$prompt" ]; then
   echo "Using prompt from first argument: $prompt"
 else
@@ -108,8 +131,8 @@ python3 "adverstorial.py" "$prompt" \
 exit_code=$?
 popd || exit
 
-# if "ADVERSTORIAL_DIR" is a git repo and on branch "main" then pull latest
-if [ -d "$ADVERSTORIAL_DIR/.git" ]; then
+# if "pull" is set and "ADVERSTORIAL_DIR" is a git repo and on branch "main" then pull latest
+if [ -n "$pull" ] && [ -d "$ADVERSTORIAL_DIR/.git" ]; then
   cd "$ADVERSTORIAL_DIR" || exit
   current_branch=$(git rev-parse --abbrev-ref HEAD)
   if [ "$current_branch" = "main" ]; then
