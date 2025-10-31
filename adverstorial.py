@@ -27,6 +27,8 @@ logging.basicConfig(level=os.environ.get("PYTHONLOGGING", "INFO"))
 # get main directory as one level up from this one
 ADVERSTORIAL_DIR = os.path.dirname(os.path.abspath(__file__))
 PAYI_API_URL = os.environ.get("PAYI_API_URL", "")
+PAYI_PROXY_DIRECT = cast_str.to_bool(os.environ.get("PAYI_PROXY_DIRECT", "false"), False)
+PAYI_PROXY_INGEST = cast_str.to_bool(os.environ.get("PAYI_PROXY_INGEST", "false"), False)
 PAYI_PROXY_URL = os.environ["PAYI_PROXY_URL"]
 if not PAYI_API_URL:
   parsed_url = urlparse(PAYI_PROXY_URL)
@@ -370,6 +372,10 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
 
 def write_story(role: Role, message: str, id: str = "", instructions: str = "", use_case_step: str = "") -> Story | None:
   params = {}
+  if PAYI_PROXY_DIRECT:
+    params["direct"] = "true"
+  if PAYI_PROXY_INGEST:
+    params["ingest"] = "true"
   temperature = TEMPERATURE + (random.random() * (TEMPERATURE / 100)) - (random.random() * (TEMPERATURE / 100))
 
   # OpenAI
