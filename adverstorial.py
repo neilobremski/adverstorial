@@ -37,7 +37,7 @@ if not PAYI_API_URL:
 MAX_OUTPUT_TOKENS = cast_str.to_int(os.environ.get("MAX_OUTPUT_TOKENS", "5000"))
 REASONING_EFFORT = os.environ.get("REASONING_EFFORT", "minimal")
 ROUNDS = cast_str.to_int(os.environ.get("ROUNDS", "1"))
-TEMPERATURE = cast_str.to_float(os.environ.get("TEMPERATURE", "0.7"))
+TEMPERATURE = os.environ.get("TEMPERATURE", "0.4,1.0")
 PAYI_VERIFY_SSL = True
 if os.environ.get("PAYI_VERIFY_SSL"):
   PAYI_VERIFY_SSL = cast_str.to_bool(os.environ.get("PAYI_VERIFY_SSL"), True)
@@ -376,7 +376,12 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
     params["direct"] = "true"
   if PAYI_PROXY_INGEST:
     params["ingest"] = "true"
-  temperature = TEMPERATURE + (random.random() * (TEMPERATURE / 100)) - (random.random() * (TEMPERATURE / 100))
+  # if TEMPERATURE is a range like "0.4,1.0", pick a random float in that range
+  # otherwise use as-is for float
+  temperature = cast_str.to_float(TEMPERATURE, 0.7) if "," not in TEMPERATURE else random.uniform(*[
+      cast_str.to_float(x.strip(), 0.7) for x in TEMPERATURE.split(",")[:2]
+  ])
+  logger.info(f"Temperature: {temperature:.6f} (from {TEMPERATURE})")
 
   # OpenAI
   if role.provider == "openai":
@@ -618,7 +623,7 @@ if __name__ == "__main__":
   )
   parser.add_argument(
       "--temperature",
-      type=float,
+      type=str,
       default=TEMPERATURE,
       dest="temperature",
       help=f"Override sampling temperature (default: ${TEMPERATURE})",
