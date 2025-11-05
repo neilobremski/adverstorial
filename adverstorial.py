@@ -371,11 +371,11 @@ def game_loop(prompt, protagonist: Role, antagonist: Role, rounds: int):
     
 
 def write_story(role: Role, message: str, id: str = "", instructions: str = "", use_case_step: str = "") -> Story | None:
-  params = {}
+  route_params = {}
   if PAYI_PROXY_DIRECT:
-    params["direct"] = "true"
+    route_params["direct"] = "1"
   if PAYI_PROXY_INGEST:
-    params["ingest"] = "true"
+    route_params["ingest"] = "1"
   # if TEMPERATURE is a range like "0.4,1.0", pick a random float in that range
   # otherwise use as-is for float
   temperature = cast_str.to_float(TEMPERATURE, 0.7) if "," not in TEMPERATURE else random.uniform(*[
@@ -450,8 +450,14 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
     relpath = f"{date_path}/{id}"
     headers["X-Shadow"] = f"{BLOB_STORAGE_PATH}/{relpath} {os.environ['BLOB_STORAGE_TOKEN']}"
 
+  # Add route params
+  if len(route_params):
+    proxy_url += "/"
+    proxy_url += "/".join([f"{k}:{v}" for k,v in route_params.items()])
+
   try:
-    response = http_request("POST", proxy_url, headers=headers, json_body=request, params=params)
+    logger.info("HTTP: %s", proxy_url)
+    response = http_request("POST", proxy_url, headers=headers, json_body=request)
   except Exception as e:
     logger.error(f"Error making request to {proxy_url}: {e}")
     return None
