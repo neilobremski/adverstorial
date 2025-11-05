@@ -1,7 +1,7 @@
 # Adverstorial
 _Adversary Story Writing Duel_
 
-![Adverstorial Logo](assets/adverstorial-app-tile.jpg)
+![Adverstorial Logo](assets/adverstorial.jpg)
 
 ## Instructions
 
