@@ -127,16 +127,6 @@ python3 "adverstorial.py" "$prompt" \
 exit_code=$?
 popd || exit
 
-# if "pull" is set and "ADVERSTORIAL_DIR" is a git repo and on branch "main" then pull latest
-if [ -n "$pull" ] && [ -d "$ADVERSTORIAL_DIR/.git" ]; then
-  cd "$ADVERSTORIAL_DIR" || exit
-  current_branch=$(git rev-parse --abbrev-ref HEAD)
-  if [ "$current_branch" = "main" ]; then
-    echo "On main branch, pulling latest changes"
-    git pull origin main
-  fi
-fi
-
 if [ $exit_code -ne 0 ]; then
   exit $exit_code
 fi
