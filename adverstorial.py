@@ -176,20 +176,16 @@ def http_request(method: str, url: str, *, headers=None, json_body=None, data: O
 class Role:
   provider: str
   model: str
-  resource: str  # for Azure OpenAI (reference model)
+  category: str  # for Azure OpenAI (Price-As category)
+  resource: str  # for Azure OpenAI (Price-As model)
   type: str  # either "protagonist" or "antagonist"
 
   def __str__(self) -> str:
     if self.resource:
-      return f"{self.type} ({self.provider}.{self.model}/{self.resource})"
+      if not self.category:
+        return f"{self.type} ({self.provider}.{self.model}/{self.resource})"
+      return f"{self.type} ({self.provider}.{self.model}/{self.category}:{self.resource})"
     return f"{self.type} ({self.provider}.{self.model})"
-
-  # make a getter called `category` that processes the provider to return the category
-  @property
-  def category(self) -> str:
-    if self.provider == "azure.openai":
-      return "system.azureopenai"
-    return f"system.{self.provider}"
 
 @dataclass(frozen=True)
 class Story:
@@ -212,12 +208,19 @@ def parse_role(value: str, type: str) -> Role:
       break
   if not provider or not model:
     raise argparse.ArgumentTypeError(f"unknown provider in {value}, expected one of: {', '.join(known_providers)}")
+
+  # make a getter called `category` that processes the provider to return the category
+  category = f"system.{provider}" if provider != "azure.openai" else "system.azureopenai"
   resource = ""
   if "/" in model:
     parts = model.split("/")
     model = parts[0]
     resource = parts[1]
-  role = Role(provider=provider, model=model, resource=resource, type=type)
+    if ":" in resource:
+      cat_res = resource.split(":")
+      category = cat_res[0]
+      resource = cat_res[1]
+  role = Role(provider=provider, model=model, category=category, resource=resource, type=type)
   return role
 
 
@@ -383,6 +386,10 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
   ])
   logger.info(f"Temperature: {temperature:.6f} (from {TEMPERATURE})")
 
+  # Initialize proxy_url and headers
+  proxy_url = ""
+  headers = {}
+
   # OpenAI
   if role.provider == "openai":
     proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "v1/responses"))
@@ -391,14 +398,32 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
     }
 
   # Azure
-  if role.provider == "azure.openai":
+  elif role.provider == "azure.openai":
     proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "openai/v1/responses"))
     headers = {
       "api-key": f"{os.environ['AZURE_OPENAI_API_KEY']} {os.environ['PAYI_API_KEY']}",
-      "xProxy-PriceAs-Resource": role.resource,
       "xProxy-Provider-BaseUri": os.environ["AZURE_OPENAI_BASE_URI"],
     }
-  
+
+  # Anthropic
+  elif role.provider == "anthropic":
+    proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "v1/messages"))
+    headers = {
+      "anthropic-version": "2023-06-01",
+      "x-api-key": f"Bearer {os.environ['ANTHROPIC_API_KEY']} {os.environ['PAYI_API_KEY']}",
+    }
+    if id:
+      headers["xProxy-UseCase-ID"] = id
+
+  else:
+    raise NotImplementedError(f"Provider {role.provider} is not implemented yet.")
+
+  if role.resource != role.model:
+    headers["xProxy-PriceAs-Resource"] = role.resource
+
+  if role.category != f"system.{role.provider}":
+    headers["xProxy-PriceAs-Category"] = role.category
+
   # OpenAI and Azure OpenAI share the same request format
   if role.provider.endswith("openai"):
     request = {
@@ -411,16 +436,8 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
       request["reasoning"] = {"effort": REASONING_EFFORT}
     else:
       request["temperature"] = temperature
-
-  # Anthropic
-  if role.provider == "anthropic":
-    proxy_url = urljoin(PAYI_PROXY_URL, os.path.join(role.provider, "v1/messages"))
-    headers = {
-      "anthropic-version": "2023-06-01",
-      "x-api-key": f"Bearer {os.environ['ANTHROPIC_API_KEY']} {os.environ['PAYI_API_KEY']}",
-    }
-    if id:
-      headers["xProxy-UseCase-ID"] = id
+  # Anthropic request format
+  elif role.provider == "anthropic":
     request = {
       "model": role.model,
       "max_tokens": MAX_OUTPUT_TOKENS,
@@ -433,9 +450,6 @@ def write_story(role: Role, message: str, id: str = "", instructions: str = "", 
         }
       ],
     }
-
-  if role.provider not in {"openai", "azure.openai", "anthropic"}:
-    raise NotImplementedError(f"Provider {role.provider} is not implemented yet.")
 
   headers["Content-Type"] = "application/json"
   headers["xProxy-UseCase-Name"] = "Story"
