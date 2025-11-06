@@ -105,9 +105,6 @@ fi
 echo "Protagonist: $protagonist"
 echo "Antagonist: $antagonist"
 
-# pick a random temperature between 0.1 and 0.8
-temperature=$(awk -v min=0.1 -v max=0.8 'BEGIN{srand(); print sprintf("%.6f", min+rand()*(max-min))}')
-
 rounds=$ROUNDS
 if [ -n "$ROUNDS" ]; then
   echo "Using rounds from ROUNDS env var"
@@ -126,7 +123,6 @@ pushd "$ADVERSTORIAL_DIR" || exit
 python3 "adverstorial.py" "$prompt" \
   --antagonist "$antagonist" \
   --protagonist "$protagonist" \
-  --temperature "$temperature" \
   --rounds "$rounds"
 exit_code=$?
 popd || exit
